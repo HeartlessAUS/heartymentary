@@ -29,9 +29,9 @@ uniform int isEyeInWater;
 uniform int worldTime;
 uniform int worldDay;
 uniform int moonPhase;
-#define UNIFORM_MOONPHASE
+#define UNIFORM_moonPhase
 
-#ifdef DYNAMIC_SHADER_LIGHT
+#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1
 	uniform int heldItemId, heldItemId2;
 
 	uniform int heldBlockLightValue;
@@ -39,6 +39,7 @@ uniform int moonPhase;
 #endif
 
 uniform float frameTimeCounter;
+uniform float isEyeInCave;
 uniform float blindFactor, nightVision;
 uniform float far, near;
 uniform float rainStrengthS;
@@ -347,7 +348,6 @@ void main() {
 
 					psample.r *= 1.5;
 					psample.a = sqrt2(psample.a) * 0.75;
-					//psample *= float(i < 33);
 
 					albedo += psample;
 				}
@@ -356,7 +356,7 @@ void main() {
 				emissive = albedoC.r * albedoC.r;
 				emissive *= emissive;
 				emissive *= emissive;
-				emissive = clamp(emissive * 12.0, 0.004, 0.35);
+				emissive = clamp(emissive * 12.0, 0.004, 0.1);
 
 				#if FANCY_NETHER_PORTAL > 1
 					vec2 portalCoord = abs(vTexCoord.xy - 0.5);
@@ -378,9 +378,10 @@ void main() {
 		float fresnel4 = fresnel2 * fresnel2;
 
 		#if SKY_REF_FIX_1 == 1
-			float skyLightFactor = lightmap.y * lightmap.y; // duplicate 6646308
+			float skyLightFactor = lightmap.y * lightmap.y;
 		#elif SKY_REF_FIX_1 == 2
-			float skyLightFactor = max(lightmap.y - 0.80, 0.0) * 5.0;
+			float skyLightFactor = max(lightmap.y - 0.7, 0.0) / 0.3;
+				  skyLightFactor *= skyLightFactor;
 		#else
 			float skyLightFactor = max(lightmap.y - 0.99, 0.0) * 100.0;
 		#endif
@@ -479,10 +480,10 @@ void main() {
 				vec3 absorbColor = (normalize(waterColor.rgb + vec3(0.01)) * sqrt(UNDERWATER_I)) * terrainColor * 1.92;
 				float absorbDist = 1.0 - clamp(difT / 8.0, 0.0, 1.0);
 				vec3 newAlbedo = mix(absorbColor * absorbColor, terrainColor * terrainColor, absorbDist * absorbDist);
-				newAlbedo *= newAlbedo;
+				newAlbedo *= newAlbedo * 0.7;
 
-				// duplicate 307309760
-				float fog2 = lViewPosT / pow(far, 0.25) * 0.035 * (1.0 - sunVisibility*0.25) * (32.0/(FOG2_DISTANCE + 0.01));
+				//duplicate 307309760
+				float fog2 = lViewPosT / pow(far, 0.25) * 0.035 * (1.0 - sunVisibility*0.25) * (3.2/FOG2_DISTANCE_M);
 				fog2 = (1.0 - (exp(-50.0 * pow(fog2*0.125, 3.25) * eBS)));
 				float fixAtmFog = max(1.0 - fog2, 0.0);
 					  fixAtmFog *= fixAtmFog;
@@ -623,7 +624,7 @@ void main() {
 
 			reflection.rgb = max(mix(skyReflection, reflection.rgb, reflection.a), vec3(0.0));
 			
-			albedo.rgb = mix(albedo.rgb, reflection.rgb, fresnel * (0.15 + 0.85 * skyLightFactor));
+			albedo.rgb = mix(albedo.rgb, reflection.rgb, fresnel);
 		}
 
 		if (tintedGlass > 0.5) {
@@ -644,7 +645,10 @@ void main() {
 
 		albedo.rgb = startFog(albedo.rgb, nViewPos, lViewPos, worldPos, extra, NdotU);
 
-		#ifdef SHOW_LIGHT_LEVELS
+		#if SHOW_LIGHT_LEVELS > 0
+			#if SHOW_LIGHT_LEVELS == 1
+				if (heldItemId == 13001 || heldItemId2 == 13001)
+			#endif
 			if (dot(normal, upVec) > 0.99 && (mat < 0.95 || mat > 1.05) && translucent < 0.5) {
 				#include "/lib/other/indicateLightLevels.glsl"
 			}

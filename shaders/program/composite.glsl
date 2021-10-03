@@ -1,6 +1,7 @@
 /*
 Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
 */
+
 //Common//
 #include "/lib/common.glsl"
 
@@ -18,6 +19,7 @@ uniform int isEyeInWater;
 uniform int worldDay;
 uniform int worldTime;
 
+uniform float isEyeInCave;
 uniform float blindFactor;
 uniform float far, near;
 uniform float frameTimeCounter;
@@ -100,7 +102,7 @@ float GetLinearDepth(float depth) {
    return (2.0 * near) / (far + near - depth * (far - near));
 }
 
-#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined VL_NETHER
+#if defined LIGHT_SHAFTS || defined VL_CLOUDS
 	float GetDepth(float depth) {
 		return 2.0 * near * far / (far + near - (2.0 * depth - 1.0) * (far - near));
 	}
@@ -137,10 +139,6 @@ float GetLinearDepth(float depth) {
 	#include "/lib/atmospherics/volumetricClouds.glsl"
 #endif
 
-#ifdef VL_NETHER
-	#include "/lib/atmospherics/volumetricNether.glsl"
-#endif
-
 #if (defined BLACK_OUTLINE || defined PROMO_OUTLINE) && defined OUTLINE_ON_EVERYTHING
 	#ifdef OVERWORLD
 		#include "/lib/atmospherics/sky.glsl"
@@ -167,10 +165,10 @@ void main() {
     vec3 translucent = texture2D(colortex1,texCoord.xy).rgb;
 	float z0 = texture2D(depthtex0, texCoord.xy).r;
 	float z1 = texture2D(depthtex1, texCoord.xy).r;
-	float water = 0.0;
+	bool water = false;
 
 	if (translucent.b > 0.999 && z1 > z0) {
-		water = 1.0;
+		water = true;
 		translucent = vec3(1.0);
 	}
 
@@ -180,7 +178,7 @@ void main() {
 	#endif
 
 	#ifdef WATER_REFRACT
-		if (water > 0.5) {
+		if (water) {
 			vec3 worldPos = ViewToWorld(viewPos.xyz);
 			vec3 refractPos = worldPos.xyz + cameraPosition.xyz;
 			refractPos *= 0.005;
@@ -191,7 +189,6 @@ void main() {
 
 			float hand = 1.0 - float(z0 < 0.56);
 			float d0 = GetLinearDepth(z0);
-			//float d1 = GetLinearDepth(z1);
 			float distScale0 = max((far - near) * d0 + near, 6.0);
 			float fovScale = gbufferProjection[1][1] / 1.37;
 			float refractScale = fovScale / distScale0;
@@ -220,7 +217,7 @@ void main() {
 		}
 	#endif
     
-	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined VL_NETHER
+	#ifdef LIGHT_SHAFTS
 		float dither = Bayer64(gl_FragCoord.xy);
 	#endif
 
@@ -236,41 +233,32 @@ void main() {
 	#endif
 
 	if (isEyeInWater == 1 && z0 == 1.0) {
-		//color.rgb *= pow(underwaterColor.rgb, vec3(0.5)) * 3;
 		color.rgb = 0.8 * pow(underwaterColor.rgb * (1.0 - blindFactor), vec3(2.0));
 	}
 
 	if (isEyeInWater == 2) color.rgb *= vec3(1.0, 0.25, 0.01);
 
-	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined RAINBOW || defined VL_NETHER
+	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined RAINBOW
 		#ifdef OVERWORLD
 			vec3 nViewPos = normalize(viewPos.xyz);
 			float cosS = dot(nViewPos, lightVec);
 		#else
-			#ifdef NETHER
-				vec3 nViewPos = normalize(viewPos.xyz);
-				float cosS = dot(nViewPos, lightVec);
-			#else
-				float cosS = 0.0;
-			#endif
+			float cosS = 0.0;
 		#endif
 	#endif
 
 	vec3 vl = vec3(0.0);
 	vec4 clouds = vec4(0.0);
-	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined VL_NETHER
+	#if defined LIGHT_SHAFTS || defined VL_CLOUDS
 		vec3 vlAlbedo = translucent;
-		if (isEyeInWater == 0 && water > 0.5) vlAlbedo = vec3(0.0);
+		if (isEyeInWater == 0 && water) vlAlbedo = vec3(0.0);
 		float depth0 = GetDepth(z0);
 		float depth1 = GetDepth(z1);
 		#ifdef LIGHT_SHAFTS
 			vl = GetVolumetricRays(depth0, depth1, vlAlbedo, dither, cosS);
 		#endif
-		#if defined VL_CLOUDS && defined OVERWORLD
+		#ifdef VL_CLOUDS
 			clouds = GetVolumetricClouds(depth0, depth1, vlAlbedo, dither, viewPos);
-		#endif
-		#if defined VL_NETHER && defined NETHER
-			clouds = GetVolumetricNetherClouds(depth0, depth1, vlAlbedo, dither, viewPos);
 		#endif
 	#endif
 
@@ -281,41 +269,35 @@ void main() {
 		#endif
 		if (rainbowTime > 0.001) {
 			vec3 rainbowAlbedo = translucent;
-			if (isEyeInWater == 0 && water > 0.5) rainbowAlbedo = vec3(0.0);
-			float rainbowDistance = far * 0.4;
-			float rainbowLength = far * 0.6;
+			float rainbowDistance = max(far, 256.0) * 0.25;
+			float rainbowLength = max(far, 256.0) * 0.75;
 
 			vec4 viewPosZ1 = gbufferProjectionInverse * (vec4(texCoord, z1, 1.0) * 2.0 - 1.0);
 			viewPosZ1 /= viewPosZ1.w;
 			float lViewPosZ1 = length(viewPosZ1.xyz);
 			float lViewPosZ0 = length(viewPos.xyz);
-
-			float rainbowCoord = 1.0 - (cosS + 0.7) / 0.075; // -0.7
+			
+			float rainbowCoord = 1.0 - (cosS + 0.75) / (0.0625 * RAINBOW_DIAMETER);
 			float rainbowCoordM = pow(rainbowCoord, 1.5);
 				  rainbowCoordM = smoothstep(0.0, 1.0, rainbowCoordM * 0.75) + 0.05;
 			vec3 rainbow = hsv2rgb(vec3(rainbowCoordM, 1.0, 0.5));
 			rainbow = pow(rainbow, vec3(2.2)) * vec3(1.0, 0.3, 1.0);
-			/*vec3 rainbow = vec3(0.5 - abs(rainbowCoord - 0.2),
-								0.5 - abs(rainbowCoord - 0.5),
-								0.5 - abs(rainbowCoord - 0.8));
-				 rainbow = smoothstep(vec3(0.0), vec3(1.0), rainbow * 2.0);
-				 rainbow *= rainbow;
-				 rainbow *= rainbow;
-				 rainbow *= vec3(0.5, 0.125, 0.5);*/
 
 			float rainbowFactor = clamp(1.0 - rainbowCoord, 0.0, 1.0) * clamp(rainbowCoord, 0.0, 1.0);
 				  rainbowFactor *= rainbowFactor;
 				  rainbowFactor *= min(max(lViewPosZ1 - rainbowDistance, 0.0) / rainbowLength, 1.0);
 				  rainbowFactor *= rainbowTime;
+			if (isEyeInWater == 1) rainbowFactor = 0.0;
+			else if (water) rainbowAlbedo = vec3(0.0);
 
 			if (z1 > z0 && lViewPosZ0 < rainbowDistance + rainbowLength)
 			rainbow *= mix(rainbowAlbedo, vec3(1.0),
 					   clamp((lViewPosZ0 - rainbowDistance) / rainbowLength, 0.0, 1.0));
+			rainbowFactor = rainbowFactor * min(dot3(rainbow * 100.0), 1.0);
 
-			rainbow = clamp(rainbow, vec3(0.0), vec3(1.0));
-			color.rgb = mix(color.rgb, rainbow * 10.0 * RAINBOW_BRIGHTNESS, rainbowFactor);
+			rainbow = clamp(rainbow, vec3(0.0), vec3(1.0)) * 10.0 * RAINBOW_BRIGHTNESS;
+			color.rgb = mix(color.rgb, rainbow, rainbowFactor);
 			vl = mix(vl, vec3(0.0), min(rainbowFactor * 2.0, 1.0));
-			//color.rgb += rainbow;
 		}
 	#endif
 
@@ -333,7 +315,7 @@ void main() {
 	gl_FragData[0] = color;
 	gl_FragData[1] = vec4(vl, 1.0);
 
-	#if defined VL_CLOUDS || defined VL_NETHER
+	#ifdef VL_CLOUDS
     /*DRAWBUFFERS:015*/
 	gl_FragData[2] = clouds;
 	#endif

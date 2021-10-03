@@ -21,25 +21,43 @@ uniform sampler2D texture;
 
 //Program//
 void main() {
-	vec4 albedo = texture2D(texture, texCoord.xy) * color * 0.8229;
+    vec4 albedoP = texture2D(texture, texCoord);
+	vec4 albedo = albedoP * color;
     
-	albedo.rgb = pow(albedo.rgb,vec3(5.0)) * 10.0;
+	albedo.rgb = pow(albedo.rgb, vec3(2.2));
 	
 	#ifdef WHITE_WORLD
 		albedo.rgb = vec3(2.0);
 	#endif
+
+	float emissive = 0.0;
+
+	// duplicate 39582069
+	#ifdef COMPBR
+		emissive = length(albedoP.rgb);
+		emissive *= emissive;
+		emissive *= emissive;
+		if (color.a < 0.9) emissive = pow2(emissive * emissive) * 0.01;
+		else emissive = emissive * 0.1;
+	#else
+		emissive = 1.0;
+	#endif
+
+	vec3 emissiveLighting = albedo.rgb * emissive * 20.0 * EMISSIVE_MULTIPLIER;
+    albedo.rgb *= emissiveLighting;
+	albedo.a *= albedo.a * albedo.a;
     
 	#ifdef GBUFFER_CODING
 		albedo.rgb = vec3(0.0, 170.0, 170.0) / 255.0;
 		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
 	#endif
 
-    /* DRAWBUFFERS:0 */
+    /* DRAWBUFFERS:03 */
 	gl_FragData[0] = albedo;
+	gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
 
 	#if defined ADV_MAT && defined REFLECTION_SPECULAR
 	/* DRAWBUFFERS:0361 */
-	gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
 	gl_FragData[2] = vec4(0.0, 0.0, float(gl_FragCoord.z < 1.0), 1.0);
 	gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0);
 	#endif

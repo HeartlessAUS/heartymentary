@@ -75,6 +75,9 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             specR = 80.004, mat = 3.0;
                     } else {
                         if (mc_Entity.x == 10003) // Stone+, Coal Ore
+                            #ifdef NOISY_TEXTURES
+                                noiseVarying = 0.77,
+                            #endif
                             specR = 20.04;
                         else if (mc_Entity.x == 10007) // Dirt, Coarse Dirt, Podzol, Grass Path, Dirt Path, Farmland Dry
                             specR = 2.035, specG = 0.003;
@@ -130,13 +133,25 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                         else if (mc_Entity.x == 10108) // Dark Oak Log+
                             specR = 2.04;		
                         else if (mc_Entity.x == 10111) // Birch Planks+, Fletching Table, Loom
+                            #ifdef NOISY_TEXTURES
+                                noiseVarying = 0.77,
+                            #endif
                             specR = 20.036;
                     } else {
                         if (mc_Entity.x == 10112) // Oak Planks+, Jungle Planks+, Bookshelf, Composter
+                            #ifdef NOISY_TEXTURES
+                                noiseVarying = 0.77,
+                            #endif
                             specR = 20.055;
                         else if (mc_Entity.x == 10114) // Acacia Planks+, Barrel
+                            #ifdef NOISY_TEXTURES
+                                noiseVarying = 0.7,
+                            #endif
                             specR = 20.075;
                         else if (mc_Entity.x == 10115) // Spruce Planks+, Smithing Table
+                            #ifdef NOISY_TEXTURES
+                                noiseVarying = 0.7,
+                            #endif
                             specR = 20.12;
                     }
                 }
@@ -159,6 +174,9 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             specR = 20.4;
                     } else {
                         if (mc_Entity.x == 10198) // Stone Bricks++, Dried Kelp Block
+                            #ifdef NOISY_TEXTURES
+                                noiseVarying = 0.7,
+                            #endif
                             specR = 20.09;
                         else if (mc_Entity.x == 10199) // Nether Ores, Blackstone++
                             #ifdef NOISY_TEXTURES
@@ -340,7 +358,8 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 lightVarying = 4.0,
                             #endif
                             specR = 3.1, specG = 0.75,
-                            lmCoord.x = 0.93, specB = 9.0055, color.rgb = vec3(0.63, 0.59, 0.67),
+                            lmCoord.x = 0.87, specB = 16.04,
+                            mat = 17000.0, color.rgb = vec3(1.5, 0.67, 2.9),
                             quarterNdotUfactor = 0.0, mipmapDisabling = 1.0;
                         else if (mc_Entity.x == 11012) // Magma Block
                             #ifdef NOISY_TEXTURES
@@ -358,7 +377,8 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef COLORED_LIGHT
                                 lightVarying = 1.0,
                             #endif
-                            lmCoord.x = 0.93, specB = 16.005, color.rgb = vec3(0.45),
+                            lmCoord.x = 0.81, specB = 16.005,
+                            mat = 17000.0, color.rgb = vec3(1.5, 0.8, 1.0),
                             quarterNdotUfactor = 0.0;
                         else if (mc_Entity.x == 11020) // Redstone Lamp Lit
                             #ifdef COLORED_LIGHT
@@ -533,6 +553,10 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 lightVarying = 5.0,
                             #endif
                             specB = 12.0003, lmCoord.x = min(lmCoord.x, 0.885), mipmapDisabling = 1.0;
+                        else if (mc_Entity.x == 11110) // Sculk Sensor Inactive
+                            specB = 0.01, lmCoord = vec2(0.0);
+                        else if (mc_Entity.x == 11111) // Sculk Sensor Active
+                            specB = 0.05, lmCoord = vec2(0.0);
                         else if (mc_Entity.x == 11112) // Lit Candles
                             #ifdef COLORED_LIGHT
                                 lightVarying = 3.0,
@@ -540,26 +564,38 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             lmCoord.x = clamp(lmCoord.x, 0.0, 0.87);
                     }
                 } else {
-                    if (mc_Entity.x < 11128.5) {
+                    if (mc_Entity.x < 11129.5) {
                         if (mc_Entity.x < 11121.5) {
                             if (mc_Entity.x == 11116) // Diamond Ore, Emerald Ore
                                 #ifdef EMISSIVE_ORES
                                     specB = 0.30, mat = 113.0, mipmapDisabling = 1.0,
+                                #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.77,
                                 #endif
                                 specR = 20.04;
                             else if (mc_Entity.x == 11117) // Deepslate Diamond Ore, Deepslate Emerald Ore
                                 #ifdef EMISSIVE_ORES
                                     specB = 0.30, mat = 113.0, mipmapDisabling = 1.0,
                                 #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.5,
+                                #endif
                                 specR = 12.065;
                             else if (mc_Entity.x == 11120) // Gold Ore, Lapis Ore
                                 #ifdef EMISSIVE_ORES
                                     specB = 0.08, mat = 113.0, mipmapDisabling = 1.0,
                                 #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.77,
+                                #endif
                                 specR = 20.04;
                             else if (mc_Entity.x == 11121) // Deepslate Gold Ore, Deepslate Lapis Ore
                                 #ifdef EMISSIVE_ORES
                                     specB = 0.08, mat = 113.0, mipmapDisabling = 1.0,
+                                #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.5,
                                 #endif
                                 specR = 12.065;
                         } else {
@@ -567,15 +603,24 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 #ifdef EMISSIVE_ORES
                                     specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
                                 #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.77,
+                                #endif
                                 specR = 20.04;
                             else if (mc_Entity.x == 11125) // Deepslate Redstone Ore Unlit
                                 #ifdef EMISSIVE_ORES
                                     specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
                                 #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.5,
+                                #endif
                                 specR = 12.065;
                             else if (mc_Entity.x == 11128) // Redstone Ore Lit
                                 #ifdef COLORED_LIGHT
                                     lightVarying = 2.0,
+                                #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.77,
                                 #endif
                                 lmCoord.x *= 0.95,
                                 specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
@@ -584,20 +629,33 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 #ifdef COLORED_LIGHT
                                     lightVarying = 2.0,
                                 #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.5,
+                                #endif
                                 lmCoord.x *= 0.95,
                                 specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
                                 specR = 12.065;
                         }
                     } else {
-                        if (mc_Entity.x < 11133.5) {
+                        if (mc_Entity.x < 11135.5) {
                             if (mc_Entity.x == 11132) // Iron Ore
                                 #ifdef EMISSIVE_ORES
+                                #ifdef EMISSIVE_IRON_ORE
                                     specB = 0.05, mat = 113.0, mipmapDisabling = 1.0, specG = 0.07,
+                                #endif
+                                #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.77,
                                 #endif
                                 specR = 20.04;
                             else if (mc_Entity.x == 11133) // Deepslate Iron Ore
                                 #ifdef EMISSIVE_ORES
+                                #ifdef EMISSIVE_IRON_ORE
                                     specB = 0.05, mat = 113.0, mipmapDisabling = 1.0, specG = 0.07,
+                                #endif
+                                #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.5,
                                 #endif
                                 specR = 20.04;
                         } else {
@@ -605,10 +663,16 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 #ifdef EMISSIVE_ORES
                                     specB = 0.20, mat = 113.0, mipmapDisabling = 1.0, specG = 0.1,
                                 #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.77,
+                                #endif
                                 specR = 20.04;
                             else if (mc_Entity.x == 11137) // Deepslate Copper Ore
                                 #ifdef EMISSIVE_ORES
                                     specB = 0.20, mat = 113.0, mipmapDisabling = 1.0, specG = 0.1,
+                                #endif
+                                #ifdef NOISY_TEXTURES
+                                    noiseVarying = 0.5,
                                 #endif
                                 specR = 20.04;
                             else if (mc_Entity.x == 11200) // Rails

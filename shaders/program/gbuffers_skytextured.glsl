@@ -20,6 +20,7 @@ varying vec3 upVec, sunVec;
 #ifdef FSH
 
 //Uniforms//
+uniform float isEyeInCave;
 uniform float screenBrightness;
 
 uniform vec3 skyColor;
@@ -105,6 +106,10 @@ void main() {
 	#ifdef GBUFFER_CODING
 		albedo.rgb = vec3(255.0, 255.0, 85.0) / 255.0;
 		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
+	#endif
+	
+	#if defined CAVE_SKY_FIX && defined OVERWORLD
+		albedo.rgb *= 1.0 - isEyeInCave;
 	#endif
 	
     /* DRAWBUFFERS:0 */

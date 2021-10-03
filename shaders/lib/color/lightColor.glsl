@@ -1,5 +1,5 @@
-#if defined MOON_PHASE_LIGHTING && !defined UNIFORM_MOONPHASE
-#define UNIFORM_MOONPHASE
+#if defined MOON_PHASE_LIGHTING && !defined UNIFORM_moonPhase
+#define UNIFORM_moonPhase
 uniform int moonPhase;
 #endif
 

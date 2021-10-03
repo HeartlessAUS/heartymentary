@@ -62,9 +62,9 @@ uniform int frameCounter;
 uniform int isEyeInWater;
 uniform int worldTime;
 uniform int moonPhase;
-#define UNIFORM_MOONPHASE
+#define UNIFORM_moonPhase
 
-#ifdef DYNAMIC_SHADER_LIGHT
+#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1
 	uniform int heldItemId, heldItemId2;
 
 	uniform int heldBlockLightValue;
@@ -289,7 +289,8 @@ void main() {
 						#endif
 					} else { // 17000 - Limited lAlbedoP
 						lAlbedoP = min(lAlbedoP, color.r) * color.g;
-						albedo.b *= color.b;
+						if (color.b < 2.0) albedo.b *= color.b;
+						else albedo.g *= color.b - 2.0;
 					}
 				} else { 
 					if (mat < 25000.0) { // 20000 - Channel Controlled lAlbedoP
@@ -518,9 +519,6 @@ void main() {
 		float parallaxShadow = 1.0;
 		#ifdef ADV_MAT
 			rawAlbedo = albedo.rgb * 0.999 + 0.001;
-			#if SELECTION_MODE == 2
-				rawAlbedo.b = min(rawAlbedo.b, 0.998);
-			#endif
 			#ifdef COMPBR
 				//albedo.rgb *= ao;
 				if (metalness > 0.801) {
@@ -654,7 +652,10 @@ void main() {
 			#endif
 		#endif
 		
-		#ifdef SHOW_LIGHT_LEVELS
+		#if SHOW_LIGHT_LEVELS > 0
+			#if SHOW_LIGHT_LEVELS == 1
+				if (heldItemId == 13001 || heldItemId2 == 13001)
+			#endif
 			if (dot(normal, upVec) > 0.99 && foliage + leaves < 0.1) {
 				#include "/lib/other/indicateLightLevels.glsl"
 			}
@@ -787,8 +788,8 @@ void main() {
 			
 			#if defined PARALLAX || defined SELF_SHADOW
 				mat3 tbnMatrix = mat3(tangent.x, binormal.x, normal.x,
-									tangent.y, binormal.y, normal.y,
-									tangent.z, binormal.z, normal.z);
+									  tangent.y, binormal.y, normal.y,
+									  tangent.z, binormal.z, normal.z);
 			
 				viewVector = tbnMatrix * (gl_ModelViewMatrix * gl_Vertex).xyz;
 				dist = length(gl_ModelViewMatrix * gl_Vertex);
@@ -851,17 +852,6 @@ void main() {
 
 	#if AA > 1
 		gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
-	#endif
-
-	#ifdef TEST
-		/*
-		vec2 positionOffset = vec2(0.0);
-		int framemodM1 = int(framemod128 / 8.0) - 8;
-		int framemodM2 = int(framemod8d) - 4;
-		positionOffset.x = framemodM1 * (1.0 / 4.0) * gl_Position.w;
-		positionOffset.y = framemodM2 * (1.0 / 2.0) * gl_Position.w;
-		gl_Position.xy += positionOffset;
-		*/
 	#endif
 }
 

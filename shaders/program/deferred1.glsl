@@ -19,6 +19,7 @@ uniform int isEyeInWater;
 uniform int worldDay;
 uniform int worldTime;
 
+uniform float isEyeInCave;
 uniform float blindFactor, nightVision;
 uniform float far, near;
 uniform float frameTimeCounter;
@@ -48,14 +49,14 @@ uniform sampler2D colortex4;
 
 #ifdef AURORA
 uniform int moonPhase;
-#define UNIFORM_MOONPHASE
+#define UNIFORM_moonPhase
 #endif
 
 #if defined ADV_MAT || defined GLOWING_ENTITY_FIX || defined AO
 uniform sampler2D colortex3;
 #endif
 
-#if (defined ADV_MAT && defined REFLECTION_SPECULAR) || defined SEVEN || (defined END && defined ENDER_NEBULA) || (defined NETHER && defined NETHER_SMOKE) || SELECTION_MODE == 2
+#if (defined ADV_MAT && defined REFLECTION_SPECULAR) || defined SEVEN || (defined END && defined ENDER_NEBULA) || (defined NETHER && defined NETHER_SMOKE)
 uniform vec3 cameraPosition;
 
 uniform sampler2D colortex6;
@@ -159,7 +160,7 @@ float GetAmbientOcclusion(float z) {
 }
 #endif
 
-#if SELECTION_MODE == 2
+#if SELECTION_MODE == 2 && defined ADV_MAT
 vec3 GetVersatileOutline(vec3 color) {
 	vec3 colorSqrt = sqrt(color.rgb);
 	float perceived = 0.1126 * colorSqrt.r + 0.4152 * colorSqrt.g + 0.2722 * colorSqrt.b;
@@ -170,8 +171,11 @@ vec3 GetVersatileOutline(vec3 color) {
 	perceived = max(1.0 - perceived * 1.3, 0.0);
 	perceived *= perceived;
 	perceived *= perceived;
-	perceived *= perceived;
-	color.rgb *= perceived;
+	perceived = min(perceived, 1.0);
+	float perSteep = 16.0;
+	if (perceived > 0.5) perceived = pow((perceived - 0.5) * 2.0, 1.0 / perSteep) * 0.5 + 0.5;
+	else perceived = pow(perceived * 2.0, perSteep) * 0.5;
+	color.rgb *= max(perceived * 0.5, 0.007);
 	return color.rgb;
 }
 #endif
@@ -185,33 +189,32 @@ vec3 GetVersatileOutline(vec3 color) {
 #include "/lib/util/spaceConversion.glsl"
 
 #ifdef OVERWORLD
-#include "/lib/atmospherics/sky.glsl"
+	#include "/lib/atmospherics/sky.glsl"
 #endif
 
 #if defined SEVEN || (defined ADV_MAT && defined REFLECTION_SPECULAR && defined OVERWORLD) || (defined END && defined ENDER_NEBULA) || (defined NETHER && defined NETHER_SMOKE)
-#ifdef AURORA
-#include "/lib/color/auroraColor.glsl"
-#endif
-
-#include "/lib/atmospherics/skyboxEffects.glsl"
+	#ifdef AURORA
+		#include "/lib/color/auroraColor.glsl"
+	#endif
+	#include "/lib/atmospherics/skyboxEffects.glsl"
 #endif
 
 #include "/lib/atmospherics/fog.glsl"
 
 #ifdef BLACK_OUTLINE
-#include "/lib/outline/blackOutline.glsl"
+	#include "/lib/outline/blackOutline.glsl"
 #endif
 
 #ifdef PROMO_OUTLINE
-#include "/lib/outline/promoOutline.glsl"
+	#include "/lib/outline/promoOutline.glsl"
 #endif
 
 #if defined ADV_MAT && defined REFLECTION_SPECULAR
-#include "/lib/util/encode.glsl"
-#include "/lib/reflections/raytrace.glsl"
-#include "/lib/reflections/complexFresnel.glsl"
-#include "/lib/surface/materialDeferred.glsl"
-#include "/lib/reflections/roughReflections.glsl"
+	#include "/lib/util/encode.glsl"
+	#include "/lib/reflections/raytrace.glsl"
+	#include "/lib/reflections/complexFresnel.glsl"
+	#include "/lib/surface/materialDeferred.glsl"
+	#include "/lib/reflections/roughReflections.glsl"
 #endif
 
 //Program//
@@ -246,6 +249,7 @@ void main() {
 		#if defined ADV_MAT || defined GLOWING_ENTITY_FIX || defined AO
 			float skymapMod = texture2D(colortex3, texCoord).b;
 			// skymapMod = 1.0            = Glowing Status Effect
+			// skymapMod = 0.995          = Versatile Selection Outline
 			// skymapMod = 0.515 ... 0.99 = Cauldron
 			// skymapMod = 0.51           = No SSAO
 			// skymapMod = 0.0   ... 0.5  = Rain Puddles
@@ -262,17 +266,17 @@ void main() {
 			float ambientOcclusion = ao;
 		#endif
 
+		#if SELECTION_MODE == 2 && defined ADV_MAT
+			if (skymapMod > 0.9925 && 0.9975 > skymapMod) {
+				color.rgb = GetVersatileOutline(color.rgb);
+			}
+		#endif
+
 		#if defined ADV_MAT && defined REFLECTION_SPECULAR
 			float smoothness = 0.0, metalness = 0.0, f0 = 0.0;
 			vec3 normal = vec3(0.0), rawAlbedo = vec3(0.0);
 
 			GetMaterials(smoothness, metalness, f0, normal, rawAlbedo, texCoord);
-
-			#if SELECTION_MODE == 2
-				if (rawAlbedo.b > 0.999) {
-					color.rgb = GetVersatileOutline(color.rgb);
-				}
-			#endif
 
 			float smoothnessP = smoothness;
 			smoothness *= smoothness;
@@ -417,11 +421,6 @@ void main() {
 					color.rgb = 3.0 * pow(vec3(timeThing1, timeThing2, timeThing3), vec3(3.2));
 				#endif
 			}
-		#else
-			#if SELECTION_MODE == 2
-				if (texture2D(colortex1, texCoord).b > 0.999)
-				color.rgb = GetVersatileOutline(color.rgb);
-			#endif
 		#endif
 		
 		#ifdef GLOWING_ENTITY_FIX
@@ -490,7 +489,7 @@ void main() {
 		color.rgb = skyBlurColor / 5.0;
 
 		#ifdef NETHER
-			color.rgb += pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4;
+			color.rgb = pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4;
 			#ifdef NETHER_SMOKE
 				color.rgb += netherSmoke;
 			#endif

@@ -59,8 +59,9 @@ vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, 
 			if (endurance >= 1.0) cosS = max((cosS + endurance) / (endurance + 1.0), 0.0);
 			else cosS = pow(max((cosS + 1.0) / 2.0, 0.0), (11.0 - endurance*10.0));
 		#endif
-		
-		if (eyeAltitude < 2.0) visibility *= clamp((eyeAltitude-1.0), 0.0, 1.0);
+		#ifdef CAVE_SKY_FIX
+			visibility *= 1.0 - isEyeInCave;
+		#endif
 	#endif
 	
 	#ifdef END

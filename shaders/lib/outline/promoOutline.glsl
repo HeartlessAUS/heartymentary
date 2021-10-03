@@ -46,7 +46,7 @@ void PromoOutline(inout vec3 color, sampler2D depth) {
 		vec4 screenPos = vec4(texCoord, fogZ, 1.0);
 		vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
 		viewPos /= viewPos.w;
-		fog = length(viewPos) / far * 1.5 * (10/FOG1_DISTANCE);
+		fog = length(viewPos) / far * 1.5 * (1.5/FOG1_DISTANCE_M);
 		fog = 1.0 - exp(-0.1 * pow(fog, 10));
 	#endif
 

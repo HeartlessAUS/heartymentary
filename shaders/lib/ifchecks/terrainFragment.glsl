@@ -118,9 +118,9 @@ if (mat > 100.5 && mat < 10000.0) {
                             albedo.rgb *= 1 + length(albedo.rgb) * pow(WATER_OPACITY, 32.0) * 2.0;
                         #endif
                         #ifdef NORMAL_MAPPING
-                            vec2 cauldronCoord1 = texCoord + fract(frametime * 0.003);
+                            vec2 cauldronCoord1 = texCoord + fract(frametime * 0.002);
                             float cauldronNoise1 = texture2D(noisetex, cauldronCoord1 * 2.0).r;
-                            vec2 cauldronCoord2 = texCoord - fract(frametime * 0.003);
+                            vec2 cauldronCoord2 = texCoord - fract(frametime * 0.002);
                             float cauldronNoise2 = texture2D(noisetex, cauldronCoord2 * 2.0).r;
                             float waveFactor = 0.0166 + 0.05 * lightmap.y;
                             normalMap.xy += (0.5 * waveFactor) * (cauldronNoise1 * cauldronNoise2 - 0.3);

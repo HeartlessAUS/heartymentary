@@ -4,17 +4,21 @@ vec4 GetVolumetricClouds(float depth0, float depth1, vec3 vlAlbedo, float dither
     //Color+
     float sunVisibility2 = sunVisibility * sunVisibility;
     float sunVisibility4 = sunVisibility2 * sunVisibility2;
-	vec3 cloudNightColor = ambientCol * 2.0;
-	vec3 cloudDayColor = pow(lightCol, vec3(1.5)) * (0.5 + 0.5 * timeBrightness);
-	vec3 cloudRainColor = normalize(pow(lightCol, vec3(1.0 + sunVisibility4))) * (0.015 + 0.1 * sunVisibility4 + 0.1 * timeBrightness);
 
-	vec3 cloudUpColor = mix(cloudNightColor, cloudDayColor, sunVisibility4);
-	cloudUpColor = mix(cloudUpColor, cloudRainColor, rainStrengthS);
+    vec3 cloudNightColor = ambientCol * 2.0;
+    vec3 cloudDayColor = pow(lightCol, vec3(1.5)) * (0.5 + 0.5 * timeBrightness);
+    vec3 cloudRainColor = normalize(pow(lightCol, vec3(1.0 + sunVisibility4))) * (0.015 + 0.1 * sunVisibility4 + 0.1 * timeBrightness);
+
+    vec3 cloudUpColor = mix(cloudNightColor, cloudDayColor, sunVisibility4);
+         cloudUpColor = mix(cloudUpColor, cloudRainColor, rainStrengthS);
+    
     vec3 cloudDownColor = cloudUpColor * 0.35;
-	float cloudAmountM = 0.075 * CLOUD_AMOUNT * (1.0 - 0.35 * rainStrengthS);
-	float cloudAltitude = 128.0;
-	float cloudThickness = 24.0;
 	
+    float cloudAmountM = 0.075 * CLOUD_AMOUNT * (1.0 - 0.35 * rainStrengthS);
+
+    //Settings
+    float cloudAltitude = 128.0;
+    float cloudThickness = 24.0;
     int sampleCount = 20;
     float minDistFactor = 160.0 / sampleCount * sqrt(far / 256.0);
 

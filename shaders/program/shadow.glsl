@@ -112,8 +112,6 @@ void main() {
 
 	if (albedo.a < 0.0001) discard;
 
-	//albedo.rgb *= color.rgb;
-
     float premult = float(mat > 0.95 && mat < 1.05);
 	float water = float(mat > 1.95 && mat < 2.05);
 	float ice = float(mat > 2.95 && mat < 3.05);

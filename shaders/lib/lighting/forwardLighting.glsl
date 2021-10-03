@@ -60,7 +60,7 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 					if (isEyeInWater == 0) shadowLength *= float(lightmap.y > 0.001);
 				#endif
 
-				#ifdef TEST
+				#ifdef TEST_12312
 					vec3 shadowPos = WorldToShadow(worldPos);
 					float distb = sqrt(shadowPos.x * shadowPos.x + shadowPos.y * shadowPos.y);
 					float distortFactor = distb * shadowMapBias + (1.0 - shadowMapBias);
@@ -73,7 +73,7 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 				#endif
 
 				if (shadowLength > 0.000001) {
-					#ifndef TEST
+					#ifndef TEST_12312
 						vec3 shadowPos = WorldToShadow(worldPos);
 						float distb = sqrt(shadowPos.x * shadowPos.x + shadowPos.y * shadowPos.y);
 						float distortFactor = distb * shadowMapBias + (1.0 - shadowMapBias);
@@ -116,7 +116,7 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 					#if defined PROJECTED_CAUSTICS && defined WATER_CAUSTICS && defined OVERWORLD && !defined GBUFFERS_WATER
 						if (isEyeInWater == 0) {
 							water = float(water > 0.99);
-							water *= sqrt1(NdotL);
+							water *= sqrt2(NdotL);
 							float shadowSum = (shadow.r + shadow.g + shadow.b) / 3.0;
 							water *= pow2(1.0 - shadowSum);
 						}
@@ -142,7 +142,7 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 					fakeShadow = 1.0 - fakeShadow;
 				}
 
-				#ifdef TEST
+				#ifdef TEST_12312
 					if (shadow.r < 0.1 && albedo.r + albedo.b < 1.9) {
 						float timeThing1 = abs(fract(frameTimeCounter * 1.35) - 0.5) * 2.0;
 						float timeThing2 = abs(fract(frameTimeCounter * 1.15) - 0.5) * 2.0;
@@ -252,12 +252,15 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 		#endif
     #else
 		#ifdef NETHER
-			#if MC_VERSION <= 11600
-			#else
+			#if MC_VERSION >= 11600
 				if (quarterNdotU < 0.5625) quarterNdotU = 0.5625 + (0.4 - quarterNdotU * 0.7111111111111111);
 			#endif
 		
-			vec3 sceneLighting = netherCol * (1 - pow(length(fogColor / 3), 0.25)) * NETHER_I * (vsBrightness*0.5 + 0.5);
+			#if MC_VERSION >= 11600
+				vec3 sceneLighting = normalize(fogColor) * 0.0385 * NETHER_I * (vsBrightness*0.5 + 0.6);
+			#else
+				vec3 sceneLighting = normalize(netherCol) * 0.0385 * NETHER_I * (vsBrightness*0.5 + 0.6);
+			#endif
 		#else
 			vec3 sceneLighting = vec3(0.0);
 		#endif
@@ -350,10 +353,10 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 
     vec3 blockLighting = blocklightCol * newLightmap * newLightmap;
 
+	vec3 minLighting = vec3(0.000000000001 + (MIN_LIGHT * 0.0035 * (vsBrightness*0.0775 + 0.0125)));
+	//minLighting *= vec3(0.85, 1.0, 1.18);
 	#ifndef MIN_LIGHT_EVERYWHERE
-		float minLighting = 0.000000000001 + (MIN_LIGHT * 0.0035 * (vsBrightness*0.08 + 0.01)) * (1.0 - eBS);
-	#else
-		float minLighting = 0.000000000001 + (MIN_LIGHT * 0.0035 * (vsBrightness*0.08 + 0.01));
+		minLighting *= (1.0 - eBS);
 	#endif
 	#ifdef GBUFFERS_WATER
 		minLighting *= 2.0;
@@ -365,10 +368,14 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 
     float nightVisionLighting = nightVision * 0.25;
 
-	smoothLighting = clamp(smoothLighting, 0.0, 1.0);
-	smoothLighting = pow(smoothLighting, 
-						(2.0 - min(length(fullShadow1 * shadowMult), 1.5)) * VAO_STRENGTH
-						);
+	if (smoothLighting > 0.01) {
+		smoothLighting = clamp(smoothLighting, 0.0, 1.0);
+		#if VAO_STRENGTH == 10
+			smoothLighting *= smoothLighting;
+		#else
+			smoothLighting = pow(smoothLighting, 0.2 * VAO_STRENGTH);
+		#endif
+	} else smoothLighting = 1.0;
 
 	if (materialAO < 1.0) {
 		smoothLighting *= pow(materialAO, max(1.0 - shadowTime * length(shadow) * NdotL - lmCoord.x, 0.0));
@@ -376,7 +383,7 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 
     albedo *= sceneLighting + blockLighting + emissiveLighting + nightVisionLighting + minLighting;
 	albedo *= shade;
-	if (smoothLighting > 0.01) albedo *= smoothLighting;
+	albedo *= smoothLighting;
 
 	#if defined WATER_CAUSTICS && defined OVERWORLD
 		#if defined PROJECTED_CAUSTICS && !defined GBUFFERS_WATER
@@ -406,12 +413,12 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 						albedoCaustic = albedo.rgb * causticcol * 3.0;
 						causticcol *= 0.53;
 					#else
-						albedoCaustic = albedo.rgb * water * normalize(mix(sqrt(lightingCol), lightingCol, sunVisibility)) * 3.0;
+						albedoCaustic = albedo.rgb * water * 1.74;
 						causticcol = sqrt(causticcol) * 0.2;
 					#endif
 				} else {
 			#endif
-					causticfactor *= shadow.g * sqrt1(NdotL) * (1.0 - rainStrengthS);
+					causticfactor *= shadow.g * sqrt2(NdotL) * (1.0 - rainStrengthS);
 					causticfactor *= 0.25 - 0.15 * skyLightMapA;
 					causticfactor *= skyLightMapB;
 

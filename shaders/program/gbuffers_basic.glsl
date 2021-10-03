@@ -113,7 +113,7 @@ float InterleavedGradientNoise() {
 void main() {
     vec4 albedo = color;
 
-	float selectionTwo = 0.0;
+	float skymapMod = 0.0;
 	
 	#ifndef COMPATIBILITY_MODE
 		float albedocheck = albedo.a;
@@ -161,7 +161,7 @@ void main() {
 			#endif
 			#if SELECTION_MODE == 2
 				albedo.a = 0.1;
-				selectionTwo = 1.0;
+				skymapMod = 0.995;
 			#endif
 			#if SELECTION_MODE == 3
 				albedo.a = 0.0;
@@ -178,11 +178,11 @@ void main() {
     /* DRAWBUFFERS:0 */
     gl_FragData[0] = albedo;
 
-	#if defined ADV_MAT && defined REFLECTION_SPECULAR || SELECTION_MODE == 2
+	#if (defined ADV_MAT && defined REFLECTION_SPECULAR) || SELECTION_MODE == 2
 		/* DRAWBUFFERS:0361 */
-		gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
+		gl_FragData[1] = vec4(0.0, 0.0, skymapMod, 1.0);
 		gl_FragData[2] = vec4(0.0, 0.0, float(gl_FragCoord.z < 1.0), 1.0);
-		gl_FragData[3] = vec4(0.0, 0.0, selectionTwo, 1.0);
+		gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0);
 	#endif
 }
 

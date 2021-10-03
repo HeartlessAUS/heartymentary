@@ -35,6 +35,10 @@ varying vec4 color;
 	#ifdef NORMAL_MAPPING
 		varying vec3 binormal, tangent;
 	#endif
+
+	#if defined NORMAL_MAPPING && defined GENERATED_NORMALS_121123
+		uniform mat4 gbufferProjection;
+	#endif
 #endif
 
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
@@ -46,9 +50,9 @@ uniform int frameCounter;
 uniform int isEyeInWater;
 uniform int worldTime;
 uniform int moonPhase;
-#define UNIFORM_MOONPHASE
+#define UNIFORM_moonPhase
 
-#ifdef DYNAMIC_SHADER_LIGHT
+#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1
 	uniform int heldItemId, heldItemId2;
 
 	uniform int heldBlockLightValue;
@@ -76,16 +80,20 @@ uniform mat4 shadowModelView;
 uniform sampler2D texture;
 
 #if ((defined WATER_CAUSTICS || defined CLOUD_SHADOW) && defined OVERWORLD) || defined RANDOM_BLOCKLIGHT
-uniform sampler2D noisetex;
+	uniform sampler2D noisetex;
 #endif
 
 #if defined ADV_MAT && !defined COMPBR
-uniform sampler2D specular;
-uniform sampler2D normals;
+	uniform sampler2D specular;
+	uniform sampler2D normals;
 #endif
 
 #ifdef COLORED_LIGHT
-uniform sampler2D colortex9;
+	uniform sampler2D colortex9;
+#endif
+
+#if defined NOISY_TEXTURES || defined GENERATED_NORMALS_121123
+	uniform ivec2 atlasSize;
 #endif
 
 //Common Variables//
@@ -219,9 +227,66 @@ void main() {
 				if (blockEntityId == 12001) { // Conduit
 					emissive = float(albedo.b > albedo.r) * pow2(length(albedo.rgb));
 				}
+
+				#if defined NOISY_TEXTURES || defined GENERATED_NORMALS_121123
+					float atlasRatio = atlasSize.x / atlasSize.y;
+				#endif
 			#endif
 			
 			#ifdef NORMAL_MAPPING
+				#ifdef GENERATED_NORMALS_121123
+					float packSize = 128.0;
+					float lOriginalAlbedo = length(albedoP);
+					float fovScale = gbufferProjection[1][1] / 1.37;
+					float scale = lViewPos / fovScale;
+					float normalMult1 = clamp(14.0 - scale, 0.0, 8.0) * 0.15;
+					float normalMult2 = 1.5 * sqrt(NORMAL_MULTIPLIER);
+					float normalClamp1 = 0.05;
+					float normalClamp2 = 0.5;
+					vec2 checkMult = 1.0 / vTexCoordAM.pq;
+					vec2 offsetR = vec2(0.015625 / packSize);
+					offsetR.y *= atlasRatio;
+					float difSum = 0.0;
+					if (normalMult1 > 0.0) {
+						for(int i = 0; i < 4; i++) {
+							vec2 offset = vec2(0.0, 0.0);
+							if (i == 0) offset = vec2( 0.0, offsetR.y);
+							if (i == 1) offset = vec2( offsetR.x, 0.0);
+							if (i == 2) offset = vec2( 0.0,-offsetR.y);
+							if (i == 3) offset = vec2(-offsetR.x, 0.0);
+							vec2 offsetCoord = newCoord + offset;
+
+							vec2 checkOffset = offset * checkMult;
+							if (i == 0 && vTexCoord.y + checkOffset.y > 1.0) continue;
+							if (i == 1 && vTexCoord.x + checkOffset.x > 1.0) continue;
+							if (i == 2 && vTexCoord.y + checkOffset.y < 0.0) continue;
+							if (i == 3 && vTexCoord.x + checkOffset.x < 0.0) continue;
+
+							float lNearbyAlbedo = length(texture2D(texture, offsetCoord).rgb);
+							float dif = lOriginalAlbedo - lNearbyAlbedo;
+							if (dif > 0.0) dif = max(dif - normalClamp1, 0.0);
+							else           dif = min(dif + normalClamp1, 0.0);
+							dif *= normalMult1;
+							dif = clamp(dif, -normalClamp2, normalClamp2) * normalMult2;
+							if (i == 0) {
+								normalMap.y += dif;
+							}
+							if (i == 1) {
+								normalMap.x += dif;
+							}
+							if (i == 2) {
+								normalMap.y -= dif;
+							}
+							if (i == 3) {
+								normalMap.x -= dif;
+							}
+							difSum += abs(dif);
+						}
+						float difSumRaw = difSum / normalMult2;
+						if (difSumRaw > normalClamp2) normalMap.xy = mix(normalMap.xy, vec2(0.0, 0.0), max(difSumRaw - normalClamp2, 0.0) * 1.0);
+					}
+				#endif
+
 				mat3 tbnMatrix = mat3(tangent.x, binormal.x, normal.x,
 									  tangent.y, binormal.y, normal.y,
 									  tangent.z, binormal.z, normal.z);
@@ -317,9 +382,6 @@ void main() {
 		float materialAO = 1.0;
 		#ifdef ADV_MAT
 			rawAlbedo = albedo.rgb * 0.999 + 0.001;
-			#if SELECTION_MODE == 2
-				rawAlbedo.b = min(rawAlbedo.b, 0.998);
-			#endif
 			#ifdef COMPBR
 				albedo.rgb *= ao;
 				if (metalness > 0.80) {
@@ -354,19 +416,28 @@ void main() {
 				albedo.rgb *= 8.0;
 				NdotL = 0.0;
 			}
-			if (blockEntityId == 11032) { // Beacon Beam
-				lightmap = vec2(0.0, 0.0);
-				#ifdef COMPBR
-					emissive = length(albedoP.rgb);
-					emissive *= emissive;
-					emissive *= emissive;
-					if (color.a < 0.9) emissive = pow2(emissive * emissive) * 0.01;
-					else emissive = emissive * 0.1;
-				#else
-					emissive = 1.0;
-				#endif
+		#endif
+		#ifdef COMPBR
+			if (blockEntityId == 10214) { // Enchanting Table Book
+				float ETBEF = albedo.r + albedo.g - albedo.b * 4.0;
+				if (ETBEF > 0.7) { 
+					emissive = 0.25;
+				}
 			}
 		#endif
+		if (blockEntityId == 11032) { // Beacon Beam
+			lightmap = vec2(0.0, 0.0);
+			// duplicate 39582069
+			#ifdef COMPBR
+				emissive = length(albedoP.rgb);
+				emissive *= emissive;
+				emissive *= emissive;
+				if (color.a < 0.9) emissive = pow2(emissive * emissive) * 0.01;
+				else emissive = emissive * 0.1;
+			#else
+				emissive = 1.0;
+			#endif
+		}
 		
 		vec3 shadow = vec3(0.0);
 		vec3 lightAlbedo = vec3(0.0);
@@ -420,7 +491,10 @@ void main() {
 			#endif
 		#endif
 		
-		#ifdef SHOW_LIGHT_LEVELS
+		#if SHOW_LIGHT_LEVELS > 0
+			#if SHOW_LIGHT_LEVELS == 1
+				if (heldItemId == 13001 || heldItemId2 == 13001)
+			#endif
 			if (dot(normal, upVec) > 0.99) {
 				#include "/lib/other/indicateLightLevels.glsl"
 			}
@@ -528,7 +602,7 @@ void main() {
 			#endif
 		#endif
 
-		vec2 midCoord = (gl_TextureMatrix[0] *  mc_midTexCoord).st;
+		vec2 midCoord = (gl_TextureMatrix[0] * mc_midTexCoord).st;
 		vec2 texMinMidCoord = texCoord - midCoord;
 
 		#if !defined COMPBR || defined NORMAL_MAPPING

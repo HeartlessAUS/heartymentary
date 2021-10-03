@@ -39,7 +39,7 @@ uniform int frameCounter;
 uniform int isEyeInWater;
 uniform int worldTime;
 uniform int moonPhase;
-#define UNIFORM_MOONPHASE
+#define UNIFORM_moonPhase
 
 #ifdef DYNAMIC_SHADER_LIGHT
 	uniform int heldItemId, heldItemId2;
@@ -173,10 +173,17 @@ void main() {
 		#endif
 	#endif
 	
-	float lightningBolt = 0.0;
+	#ifdef ENTITY_EFFECT
+		float emissive = float(entityColor.a > 0.05) * 0.01;
+	#else
+		float emissive = 0.0;
+	#endif
+
 	#ifdef LIGHTNING_BOLTS_FIX
-		lightningBolt = float(entityId == 10101);
-		if (lightningBolt > 0.5) albedo = vec4(1.0, 1.25, 1.5, 1.0);
+		if (entityId == 10101) {
+			albedo = vec4(0.8, 0.85, 0.9, 1.0);
+			emissive = 0.25;
+		}
 	#endif
 
 	#ifndef COMPATIBILITY_MODE
@@ -185,16 +192,10 @@ void main() {
 		float albedocheck = 1.0; //needed for "Joy of Painting" mod support
 	#endif
 
-	if (albedocheck > 0.00001 && lightningBolt < 0.5) {
+	if (albedocheck > 0.00001) {
 		if (albedo.a > 0.99) albedo.a = 1.0;
 
 		vec2 lightmap = lmCoord;
-			  
-		#ifdef ENTITY_EFFECT
-			float emissive = float(entityColor.a > 0.05) * 0.01;
-		#else
-			float emissive = 0.0;
-		#endif
 
 		vec3 screenPos = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
 		vec3 viewPos = ScreenToView(screenPos);
@@ -331,9 +332,6 @@ void main() {
 		float materialAO = 1.0;
 		#ifdef ADV_MAT
 			rawAlbedo = albedo.rgb * 0.999 + 0.001;
-			#if SELECTION_MODE == 2
-				rawAlbedo.b = min(rawAlbedo.b, 0.998);
-			#endif
 			#ifdef COMPBR
 				albedo.rgb *= ao;
 				if (metalness > 0.80) {

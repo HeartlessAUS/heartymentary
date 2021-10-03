@@ -33,7 +33,7 @@ uniform mat4 gbufferProjectionInverse;
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 
-#if defined VL_CLOUDS || defined VL_NETHER
+#ifdef VL_CLOUDS
 	uniform sampler2D colortex5;
 #endif
 
@@ -46,16 +46,18 @@ uniform sampler2D colortex1;
 	const bool colortex1MipmapEnabled = true;
 #endif
 
-#if defined VL_CLOUDS || defined VL_NETHER
+#ifdef VL_CLOUDS
 	const bool colortex5MipmapEnabled = true;
 #endif
 
 //Common Variables//
 float eBS = eyeBrightnessSmooth.y / 240.0;
 float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
+float sunVisibilityLSM = clamp(dot( sunVec,upVec) + 0.125, 0.0, 0.25) * 4.0;
 float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
 float rainStrengthSp2 = rainStrengthS * rainStrengthS;
 float lightShaftTime = pow(abs(sunVisibility - 0.5) * 2.0, 10.0);
+float worldBrightness = max(timeBrightness, moonBrightness);
 
 //Common Functions//
 float GetLuminance(vec3 color) {
@@ -69,7 +71,7 @@ float GetLuminance(vec3 color) {
 void main() {
     vec4 color = texture2D(colortex0,texCoord.xy);
 
-	#if defined VL_CLOUDS || defined VL_NETHER
+	#ifdef VL_CLOUDS
 		float offsetC = 2.0;
 		float lodC = 1.5;
 		vec4 clouds1 = texture2DLod(colortex5, texCoord.xy + vec2( 0.0,  offsetC / viewHeight), lodC);
@@ -92,6 +94,11 @@ void main() {
 			float lod = 0.0;
 		#endif
 		
+		#ifndef MC_GL_RENDERER_GEFORCE
+			if (fract(viewHeight / 2.0) > 0.25 || fract(viewWidth / 2.0) > 0.25) 
+				lod = 0.0;
+		#endif
+
 		float offset = 1.0;
 		//vec3 vl0 = texture2DLod(colortex1, texCoord.xy, 0.0).rgb;
 		vec3 vl1 = texture2DLod(colortex1, texCoord.xy + vec2( 0.0,  offset / viewHeight), lod).rgb;
@@ -132,7 +139,7 @@ void main() {
 				NdotU = 1.0 - NdotU;
 				if (NdotU > 0.5) NdotU = smoothstep(0.0, 1.0, NdotU);
 				NdotU = mix(NdotU, 1.0, rainStrengthSp2 * 0.75);
-				NdotU = pow(NdotU, 8.0 * smoothstep(0.0, 1.0, pow2(1.0 - max(timeBrightness, moonBrightness))));
+				NdotU = pow(NdotU, 8.0 * smoothstep(0.0, 1.0, pow2(1.0 - worldBrightness)));
 				vl *= max(NdotU, 0.0); // Using max() here fixes a bug that affects auto exposure
 			#endif
 			vlP = vl;
@@ -167,7 +174,7 @@ void main() {
 
 	#ifdef END
    		vl *= endCol * 0.1 * LIGHT_SHAFT_THE_END_MULTIPLIER;
-    	vl *= LIGHT_SHAFT_STRENGTH * (1.0 - rainStrengthS * eBS * 0.875) * shadowFade * (1 + isEyeInWater*1.5) * (1.0 - blindFactor);
+    	vl *= LIGHT_SHAFT_STRENGTH * (1.0 - rainStrengthS * eBS * 0.875) * shadowFade * (1.0 + isEyeInWater*1.5) * (1.0 - blindFactor);
 	#else
 		vl *= LIGHT_SHAFT_STRENGTH * shadowFade * (1.0 - blindFactor);
 
@@ -183,22 +190,25 @@ void main() {
 		}
 	#endif
 
-	vl *= lightShaftTime;
 	#ifdef END
 		color.rgb += vl;
 	#else
-		vec3 addedColor = color.rgb + vl;
+		vec3 addedColor = color.rgb + vl * lightShaftTime;
 		#if LIGHT_SHAFT_MODE == 2
 			vec3 vlMixBlend = vlP * (1.0 - 0.5 * rainStrengthS);
 		#else
 			vec3 vlMixBlend = vlP * 0.5;
 			vlP *= 0.75;
 		#endif
-		vec3 mixedColor = mix(color.rgb, vl / max(vlP, 0.01), vlMixBlend);
+		float mixedTime = sunVisibility < 0.5 ?
+						  sqrt3(max(moonBrightness - 0.3, 0.0) / 0.7) * lightShaftTime
+						  : pow2(pow2((sunVisibilityLSM - 0.5) * 2.0));
+		//if (gl_FragCoord.x > 960) mixedTime = sqrt4(max(worldBrightness - 0.35, 0.0) / 0.65);
+		vec3 mixedColor = mix(color.rgb, vl / max(vlP, 0.01), vlMixBlend * mixedTime);
 		color.rgb = mix(mixedColor, addedColor, sunVisibility * (1.0 - rainStrengthS));
 	#endif
 
-	#if defined VL_CLOUDS || defined VL_NETHER
+	#ifdef VL_CLOUDS
 		clouds.a *= CLOUD_OPACITY;
 		color.rgb = mix(color.rgb, clouds.rgb, clouds.a);
 	#endif

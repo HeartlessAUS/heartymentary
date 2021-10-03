@@ -40,7 +40,7 @@ uniform int heldItemId, heldItemId2;
 uniform int isEyeInWater;
 uniform int worldTime;
 uniform int moonPhase;
-#define UNIFORM_MOONPHASE
+#define UNIFORM_moonPhase
 
 uniform float frameTimeCounter;
 uniform float nightVision;
@@ -220,9 +220,6 @@ void main() {
 		float materialAO = 1.0;
 		#ifdef ADV_MAT
 			rawAlbedo = albedo.rgb * 0.999 + 0.001;
-			#if SELECTION_MODE == 2
-				rawAlbedo.b = min(rawAlbedo.b, 0.998);
-			#endif
 			#ifdef COMPBR
 				albedo.rgb *= ao;
 				if (metalness > 0.80) {

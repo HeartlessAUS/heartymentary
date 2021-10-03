@@ -18,8 +18,9 @@ uniform int isEyeInWater;
 uniform int worldTime;
 uniform int worldDay;
 uniform int moonPhase;
-#define UNIFORM_MOONPHASE
+#define UNIFORM_moonPhase
 
+uniform float isEyeInCave;
 uniform float blindFactor;
 uniform float frameCounter;
 uniform float frameTimeCounter;
@@ -208,9 +209,6 @@ vec3 GetGalaxy(vec3 viewPos, float NdotU, float cosS, vec3 lightNight) {
 #if (defined CLOUDS || defined AURORA) && defined OVERWORLD
 #include "/lib/atmospherics/skyboxEffects.glsl"
 #endif
-#if defined VL_NETHER && defined NETHER
-#include "/lib/atmospherics/skyboxEffects.glsl"
-#endif
 #include "/lib/atmospherics/sky.glsl"
 #include "/lib/atmospherics/sunGlare.glsl"
 
@@ -260,7 +258,8 @@ void main() {
 			
 			vec3 roundSunMoon = RoundSunMoon(nViewPos, sunColor, moonColor, NdotU, cosS);
 			#ifdef CLOUDS
-				roundSunMoon *= pow2(pow2(pow2(pow2(pow2(1.0 - cloudMaskR * cloudMaskR * rainStrengthS))))); // This should still be faster than pow()
+				roundSunMoon *= pow2(pow2(pow2(pow2(pow2(1.0 - cloudMaskR * cloudMaskR * rainStrengthS)))));
+				// This should still be faster than pow()
 
 				roundSunMoon *= pow2(1.0 - rainStrengthS);
 			#else
@@ -282,8 +281,6 @@ void main() {
 		#if defined CLOUDS && THE_FORBIDDEN_OPTION == 0
 			albedo.rgb = mix(albedo.rgb, cloud.rgb, cloud.a);
 		#endif
-		
-		if (eyeAltitude < 2.0) albedo.rgb *= min(clamp((eyeAltitude-1.0), 0.0, 1.0) + pow(max(NdotU, 0.0), 32.0), 1.0);
 	#endif
 
 	#ifdef GBUFFER_CODING
@@ -304,6 +301,10 @@ void main() {
 
 	#if MC_VERSION >= 11700
 		if (isEyeInWater == 3 && blindFactor == 0) albedo.rgb = vec3(0.1, 0.15, 0.2);
+	#endif
+
+	#if defined CAVE_SKY_FIX && defined OVERWORLD
+		albedo.rgb *= 1.0 - isEyeInCave;
 	#endif
 
     /* DRAWBUFFERS:0 */

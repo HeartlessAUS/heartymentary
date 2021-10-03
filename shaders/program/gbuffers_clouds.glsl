@@ -122,9 +122,16 @@ void main(){
 		albedo.a *= min(cloudDistance * 3.0, 1.0);
 
 		float height = worldPos.y + cameraPosition.y;
+		float cloudHeightFactor = 0.0;
+		bool doFancyClouds = false;
 		if (height < 134.0) {
-			float cloudHeightFactor = clamp(height - 127.85, 0.0, 5.0) / 5.0;
-
+			cloudHeightFactor = clamp(height - 127.85, 0.0, 5.0) / 5.0;
+			doFancyClouds = true;
+		} else if (height < 198.0 && height > 190.0) {
+			cloudHeightFactor = clamp(height - 191.85, 0.0, 5.0) / 5.0;
+			doFancyClouds = true;
+		}
+		if (doFancyClouds) {
 			vec3 lightVec = sunVec * ((timeAngle < 0.5325 || timeAngle > 0.9675) ? 1.0 : -1.0);
 				
 			float shadowTime = abs(sunVisibility - 0.5) * 2.0;

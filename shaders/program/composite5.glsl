@@ -33,8 +33,10 @@ uniform sampler2D noisetex;
 uniform sampler2D depthtex1;
 
 #ifdef LENS_FLARE
-uniform vec3 sunPosition;
-uniform mat4 gbufferProjection;
+	uniform vec3 sunPosition;
+	uniform mat4 gbufferProjection;
+	uniform int moonPhase;
+	#define UNIFORM_moonPhase
 #endif
 
 #ifdef BLURRY_START
@@ -235,7 +237,7 @@ void main() {
 		float visibleSun = float(texture2D(depthtex1, lightPos + 0.5).r >= 1.0);
 		visibleSun *= max(1.0 - isEyeInWater, eBS) * (1.0 - blindFactor) * (1.0 - rainStrengthS);
 		
-		float multiplier = tempVisibleSun * LENS_FLARE_STRENGTH * 0.5;
+		float multiplier = tempVisibleSun * LENS_FLARE_STRENGTH * 0.5 * float(!(moonPhase == 4 && sunVisibility < 0.5));
 
 		if (multiplier > 0.001) LensFlare(color, lightPos, truePos, multiplier);
 	#endif
@@ -253,7 +255,9 @@ void main() {
 	#endif
 	
     #ifdef VIGNETTE
-   		color *= 1.0 - length(texCoord.xy - 0.5) * VIGNETTE_STRENGTH * (1.0 - GetLuminance(color));
+		float vignette = 1.0 - length(texCoord.xy - 0.5) * (1.0 - GetLuminance(color));
+		vignette = pow(vignette, VIGNETTE_STRENGTH);
+   		color *= vignette;
 	#endif
 	
 	color = pow(color, vec3(1.0 / 2.2));

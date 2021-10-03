@@ -30,6 +30,7 @@ uniform int worldTime;
 	uniform int heldBlockLightValue2;
 #endif
 
+uniform float isEyeInCave;
 uniform float blindFactor;
 uniform float far;
 uniform float frameTimeCounter;
@@ -320,6 +321,11 @@ void main() {
 			gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
 		#else
 			gl_Position = ftransform();
+		#endif
+
+		#ifdef COMPBR
+			if (mc_Entity.x == 12101) // Tripwire
+				lmCoord.x *= 0.9;
 		#endif
 
 		#ifdef FLICKERING_FIX

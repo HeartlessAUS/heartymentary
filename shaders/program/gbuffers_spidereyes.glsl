@@ -18,7 +18,7 @@ uniform sampler2D texture;
 void main() {
     vec4 albedo = texture2D(texture, texCoord.xy);
 	
-	#ifndef COMPATIBILITY_MODE
+	#ifdef COMPBR
 		albedo.rgb = pow(albedo.rgb,vec3(3.6));
 		albedo *= pow(1.0 + albedo.b, 3.0);
 	#else
