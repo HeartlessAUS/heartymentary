@@ -37,7 +37,6 @@ varying vec4 color;
 uniform int entityId;
 uniform int frameCounter;
 uniform int isEyeInWater;
-uniform int worldTime;
 uniform int moonPhase;
 #define UNIFORM_moonPhase
 
@@ -52,8 +51,6 @@ uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float shadowFade;
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -96,8 +93,8 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 #if defined ADV_MAT && RP_SUPPORT > 2
-vec2 dcdx = dFdx(texCoord.xy);
-vec2 dcdy = dFdy(texCoord.xy);
+	vec2 dcdx = dFdx(texCoord.xy);
+	vec2 dcdy = dFdy(texCoord.xy);
 #endif
 
 #ifdef OVERWORLD
@@ -393,29 +390,35 @@ void main() {
 					vec3 specularColor = endCol;
 				#endif
 				
-				vec3 specularHighlight = GetSpecularHighlight(smoothness, metalness, f0, specularColor, rawAlbedo,
-												shadow, newNormal, viewPos);
-				#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
-					specularHighlight *= parallaxShadow;
+				#ifdef SPECULAR_SKY_REF
+					vec3 specularHighlight = GetSpecularHighlight(smoothness, metalness, f0, specularColor, rawAlbedo,
+													shadow, newNormal, viewPos);
+					#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
+						specularHighlight *= parallaxShadow;
+					#endif
+					#ifdef LIGHT_LEAK_FIX
+						if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
+						else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
+					#endif
+					albedo.rgb += specularHighlight;
 				#endif
-				#ifdef LIGHT_LEAK_FIX
-					if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
-					else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
-				#endif
-				albedo.rgb += specularHighlight;
 			#endif
+
+			#if defined COMPBR && defined REFLECTION_SPECULAR
+				smoothness *= 0.5;
+			#endif
+		#endif
+
+		#ifdef GBUFFER_CODING
+			albedo.rgb = vec3(255.0, 85.0, 85.0) / 255.0;
+			albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
 		#endif
 	} else {
 	
 	}
 
 	#ifdef GBUFFERS_ENTITIES_GLOWING
-		skymapMod = 1.0;
-	#endif
-
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(255.0, 85.0, 85.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
+		if (albedo.a > 0.99) skymapMod = 1.0;
 	#endif
 
     /* DRAWBUFFERS:037 */
@@ -436,11 +439,9 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform int worldTime;
 uniform int entityId;
 
 uniform float frameTimeCounter;
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 
@@ -528,11 +529,11 @@ void main() {
 
 	#ifdef FLICKERING_FIX
 		if (entityId == 18) {
-			vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-			vec3 comPos = fract(position.xyz + cameraPosition);
-			comPos = abs(comPos - vec3(0.5));
-			if ((comPos.y > 0.437 && comPos.y < 0.438) || (comPos.y > 0.468 && comPos.y < 0.469)) {
-				if (dot(normal, upVec) > 0.99) {
+			if (dot(normal, upVec) > 0.99) {
+				vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
+				vec3 comPos = fract(position.xyz + cameraPosition);
+				comPos = abs(comPos - vec3(0.5));
+				if ((comPos.y > 0.437 && comPos.y < 0.438) || (comPos.y > 0.468 && comPos.y < 0.469)) {
 					gl_Position.z += 0.0001;
 				}
 			}
@@ -540,7 +541,7 @@ void main() {
 	#endif
 
 	#ifdef GBUFFERS_ENTITIES_GLOWING
-		gl_Position.z *= 0.01;
+		if (color.a > 0.99) gl_Position.z *= 0.01;
 	#endif
 }
 

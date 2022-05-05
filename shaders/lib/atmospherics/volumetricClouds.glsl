@@ -1,39 +1,49 @@
+#if defined NETHER && defined NETHER_SMOKE
+	#include "/lib/atmospherics/skyboxEffects.glsl"
+#endif
 vec4 GetVolumetricClouds(float depth0, float depth1, vec3 vlAlbedo, float dither, vec4 viewPos) {
     vec4 clouds = vec4(0.0);
-
-    //Color+
-    float sunVisibility2 = sunVisibility * sunVisibility;
-    float sunVisibility4 = sunVisibility2 * sunVisibility2;
-
-    vec3 cloudNightColor = ambientCol * 2.0;
-    vec3 cloudDayColor = pow(lightCol, vec3(1.5)) * (0.5 + 0.5 * timeBrightness);
-    vec3 cloudRainColor = normalize(pow(lightCol, vec3(1.0 + sunVisibility4))) * (0.015 + 0.1 * sunVisibility4 + 0.1 * timeBrightness);
-
-    vec3 cloudUpColor = mix(cloudNightColor, cloudDayColor, sunVisibility4);
-         cloudUpColor = mix(cloudUpColor, cloudRainColor, rainStrengthS);
-    
-    vec3 cloudDownColor = cloudUpColor * 0.35;
-	
-    float cloudAmountM = 0.075 * CLOUD_AMOUNT * (1.0 - 0.35 * rainStrengthS);
-
+	#ifdef OVERWORLD
+		//Color+
+		float sunVisibility2 = sunVisibility * sunVisibility;
+		float sunVisibility4 = sunVisibility2 * sunVisibility2;
+			vec3 cloudNightColor = ambientCol * 2.0;
+			vec3 cloudDayColor = pow(lightCol, vec3(1.5)) * (0.5 + 0.5 * timeBrightness);
+			vec3 cloudRainColor = normalize(pow(lightCol, vec3(1.0 + sunVisibility4))) * (0.015 + 0.1 * sunVisibility4 + 0.1 * timeBrightness);
+		vec3 cloudUpColor = mix(cloudNightColor, cloudDayColor, sunVisibility4);
+			 cloudUpColor = mix(cloudUpColor, cloudRainColor, rainStrengthS);
+		
+		vec3 cloudDownColor = cloudUpColor * 0.35;
+		float cloudAmountM = 0.05 * CLOUD_AMOUNT;
+	#endif
+	#ifdef NETHER
+		#ifdef NETHER_SMOKE
+			vec3 extra = DrawNetherSmoke(viewPos.xyz, dither, pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4);
+		#endif
+		vec3 cloudUpColor = netherCol;
+		vec3 cloudDownColor = cloudUpColor * cloudUpColor * 20;
+		float cloudAmountM = 0.055 * CLOUD_AMOUNT;
+	#endif
     //Settings
-    float cloudAltitude = 128.0;
-    float cloudThickness = 24.0;
+	#ifdef OVERWORLD
+		float cloudAltitude = 140.0;
+		float cloudThickness = 24.0;
+	#else
+		float cloudAltitude = 15.0;
+		float cloudThickness = 100.0;
+	#endif
     int sampleCount = 20;
     float minDistFactor = 160.0 / sampleCount * sqrt(far / 256.0);
 
     //Ray Trace
     for(int i = 0; i < sampleCount; i++) {
         float minDist = (i + dither) * minDistFactor;
-
         if (depth1 < minDist || (depth0 < minDist && vlAlbedo == vec3(0.0))) break;
-
         float distX = GetDistX(minDist);
         vec4 viewPos = gbufferProjectionInverse * (vec4(texCoord, distX, 1.0) * 2.0 - 1.0);
         viewPos /= viewPos.w;
         vec4 wpos = gbufferModelViewInverse * viewPos;
         vec3 worldPos = wpos.xyz + cameraPosition.xyz + vec3(cloudtime * 2.0, 0.0, 0.0);
-
 		float yFactor = max(cloudThickness - abs(worldPos.y - cloudAltitude), 0.0) / cloudThickness;
         float disFalloff = max(32.0 - max(length(wpos.xz) - 256.0, 0.0), 0.0) / 32.0;
         float smoke = 0.0;
@@ -53,15 +63,22 @@ vec4 GetVolumetricClouds(float depth0, float depth1, vec3 vlAlbedo, float dither
         blend = clamp(blend, 0.0, 1.0);
         blend *= blend;
         vec3 cloudColorSample = mix(cloudDownColor, cloudUpColor, blend);
-        //cloudColorSample /= sampleCount;
         if (depth0 < minDist) cloudColorSample *= vlAlbedo;
+		
+		#if defined NETHER && defined NETHER_SMOKE
+			cloudColorSample += extra + extra;
+		#endif
+		
         clouds.rgb = mix(cloudColorSample, clouds.rgb, min(clouds.a, 1.0));
-        
-        clouds.a += smoke * 256.0 / sampleCount;
+		#ifdef NETHER
+			clouds.a += smoke * 90.0 / sampleCount;
+		#else
+			clouds.a += smoke * 10.0 / sampleCount;
+		#endif
     }
 
     clouds *= 0.9;
-    clouds += clouds * dither * 0.19;
+	clouds += clouds * dither * 0.09;
     clouds = sqrt(clouds);
 
     return clouds;

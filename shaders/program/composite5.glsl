@@ -15,13 +15,11 @@ varying vec3 sunVec, upVec;
 
 //Uniforms//
 uniform int isEyeInWater;
-uniform int worldTime;
 
 uniform float blindFactor;
 uniform float frameTimeCounter;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight, aspectRatio;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -62,10 +60,13 @@ float GetLuminance(vec3 color) {
 
 void UnderwaterDistort(inout vec2 texCoord) {
 	vec2 originalTexCoord = texCoord;
-
+	float strength = UNDERWATER_DISTORT;
+	#if defined NETHER && defined NETHER_HEAT_WAVE
+			strength = NETHER_HEAT_WAVE_STRENGTH;
+	#endif
 	float wind = frameTimeCounter * ANIMATION_SPEED;
 	texCoord +=vec2(cos(texCoord.y * 32.0 + wind * 3.0),
-	                sin(texCoord.x * 32.0 + wind * 1.7)) * 0.001 * UNDERWATER_DISTORT;
+	                sin(texCoord.x * 32.0 + wind * 1.7)) * 0.001 * strength;
 
 	float mask = float(texCoord.x > 0.0 && texCoord.x < 1.0 &&
 	                   texCoord.y > 0.0 && texCoord.y < 1.0);
@@ -107,12 +108,8 @@ void Bloom(inout vec3 color, vec2 coord, float dither) {
 		blur *= blur * 128.0;
 	#endif
 	
-	#ifndef NETHER
-		#ifndef END
-			float bloomStrength = BLOOM_STRENGTH;
-		#else
-			float bloomStrength = END_BLOOM_STRENGTH;
-		#endif	
+	#if defined OVERWORLD
+		float bloomStrength = BLOOM_STRENGTH;
 	#else
 		float bloomStrength = NETHER_BLOOM_STRENGTH;
 	#endif
@@ -198,9 +195,12 @@ vec2 GetLightPos() {
 void main() {
     vec2 newTexCoord = texCoord;
 	if (isEyeInWater == 1.0) UnderwaterDistort(newTexCoord);
-	
+	#if defined NETHER && defined NETHER_HEAT_WAVE
+		UnderwaterDistort(newTexCoord);
+	#endif
+	vec2 filmGrainCoord = texCoord * vec2(viewWidth, viewHeight) / 512.0;
+	vec3 filmGrain = texture2D(noisetex, filmGrainCoord).rgb;
 	vec3 color = texture2D(colortex0, newTexCoord).rgb;
-	
 	#if AUTO_EXPOSURE > 0
 		float tempExposure = texture2D(colortex2, vec2(pw, ph)).r;
 	#endif
@@ -264,11 +264,7 @@ void main() {
 	
 	ColorSaturation(color);
 	
-	vec2 filmGrainCoord = texCoord * vec2(viewWidth, viewHeight) / 512.0;
-	vec3 filmGrain = texture2D(noisetex, filmGrainCoord).rgb;
 	color += (filmGrain - 0.25) / 128.0;
-
-	//color = texture2D(colortex1, texCoord).rgb;
 	
 	/*DRAWBUFFERS:12*/
 	gl_FragData[0] = vec4(color, 1.0);
@@ -281,7 +277,6 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform float timeAngle;
 
 uniform mat4 gbufferModelView;
 

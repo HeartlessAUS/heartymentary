@@ -15,7 +15,6 @@ varying vec3 upVec, sunVec;
 
 //Uniforms//
 uniform int isEyeInWater;
-uniform int worldTime;
 uniform int worldDay;
 uniform int moonPhase;
 #define UNIFORM_moonPhase
@@ -27,9 +26,7 @@ uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrength;
 uniform float rainStrengthS;
-uniform float shadowFade;
 uniform float screenBrightness; 
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 uniform float eyeAltitude;
 
@@ -53,8 +50,6 @@ uniform sampler2D gaux4;
 #ifdef AURORA
 uniform float isDry, isRainy, isSnowy;
 #endif
-
-//Optifine Constants//
 
 //Common Variables//
 #if WORLD_TIME_ANIMATION >= 1
@@ -117,13 +112,13 @@ vec3 GetGalaxy(vec3 viewPos, float NdotU, float cosS, vec3 lightNight) {
 	vec3 moonPos = vec3(gbufferModelViewInverse * vec4(- sunVec * 70.0, 1.0));
 	vec3 moonCoord = moonPos / (moonPos.y + length(moonPos.xz));
 	vec2 wind = vec2(frametime, 0.0);
-	vec2 coord = planeCoord.xz - moonCoord.xz;
-	coord *= 0.35;
+	vec2 skyCoord = planeCoord.xz - moonCoord.xz;
+	skyCoord *= 0.35;
 
 	#ifdef SHADER_STARS
 		#if STAR_AMOUNT == 1
 			float floorStar = 768.0;
-			vec2 starCoord = floor(coord * floorStar) / floorStar;
+			vec2 starCoord = floor(skyCoord * floorStar) / floorStar;
 			
 			float star = 1.0;
 			if (NdotU > 0.0) {
@@ -133,9 +128,9 @@ vec3 GetGalaxy(vec3 viewPos, float NdotU, float cosS, vec3 lightNight) {
 			}
 		#else
 			float floorStar = 768.0;
-			vec2 starCoord = floor(coord * floorStar) / floorStar;
+			vec2 starCoord = floor(skyCoord * floorStar) / floorStar;
 			float floorStar1 = 1024.0;
-			vec2 starCoord1 = floor(coord * floorStar1) / floorStar1;
+			vec2 starCoord1 = floor(skyCoord * floorStar1) / floorStar1;
 			
 			float star = 1.0;
 			float star1 = 1.0;
@@ -169,13 +164,13 @@ vec3 GetGalaxy(vec3 viewPos, float NdotU, float cosS, vec3 lightNight) {
 
 	#ifdef GALAXIES
 		if (sunVisibility < 1.0) {
-			vec3 galaxy = texture2D(gaux4, coord * 0.9 + 0.4).rgb;
+			vec3 galaxy = texture2D(gaux4, skyCoord * 0.9 + 0.4).rgb;
 			float lGalaxy = pow2(length(galaxy) + 0.3);
 			galaxy *= lGalaxy;
 			#ifdef SHADER_STARS
 				#if STAR_AMOUNT == 1
 					float floorStar1 = 1024.0;
-					vec2 starCoord1 = floor(coord * floorStar1) / floorStar1;
+					vec2 starCoord1 = floor(skyCoord * floorStar1) / floorStar1;
 					float star1 = 1.0;
 					if (NdotU > 0.0) {
 						star1 -= GetStarNoise(starCoord1.xy);
@@ -193,6 +188,12 @@ vec3 GetGalaxy(vec3 viewPos, float NdotU, float cosS, vec3 lightNight) {
 	result *= pow2(pow2(1.0 - max(rainStrength, rainStrengthS)));
 
 	return result;
+}
+
+float GetCoordDistance(vec2 coord1, vec2 coord2) {
+	float dis = sqrt(pow2(coord1.x - coord2.x) + pow2(coord1.y - coord2.y));
+	float disM = min(dis * 10.0, 1.0);
+	return disM;
 }
 
 //Includes//
@@ -223,11 +224,10 @@ void main() {
 	vec3 nViewPos = normalize(viewPos.xyz);
 
 	float NdotU = dot(nViewPos, upVec);
-	
+	#if defined CLOUDS || defined AURORA
+		float dither = Bayer64(gl_FragCoord.xy);
+	#endif
 	#ifdef OVERWORLD
-		#if defined CLOUDS || defined AURORA
-			float dither = Bayer64(gl_FragCoord.xy);
-		#endif
 		#ifdef CLOUDS
 			vec4 cloud = DrawCloud(viewPos.xyz * 1000000.0, dither, lightCol, ambientCol, NdotU, 6);
 			float cloudMaskR = cloud.a / CLOUD_OPACITY;
@@ -244,19 +244,36 @@ void main() {
 		#endif
 		albedo.rgb += galaxy;
 		
-		/*
-		vec3 wpos = vec3(gbufferModelViewInverse * vec4(viewPos.xyz * 70.0, 1.0));
-		vec3 planeCoord = 0.25 * wpos / (wpos.y + length(wpos.xz));
-		vec2 wind = -8.0 * vec2(frametime, 0.0);
-		vec2 coord = planeCoord.xz * 0.5 + wind * 0.00125;
-		*/
-		
 		#ifdef ROUND_SUN_MOON
 			vec3 sunColor = vec3(0.9, 0.35, 0.05);
 			if (isEyeInWater == 1) sunColor = 2.0 * normalize(underwaterColor.rgb);
 			vec3 moonColor = vec3(12.0, 13.8, 15.9) / 35.7;
 			
 			vec3 roundSunMoon = RoundSunMoon(nViewPos, sunColor, moonColor, NdotU, cosS);
+
+			// My first test of textured moon. I don't like the result.
+			/*if (cosS < -0.9983) {
+				vec3 wpos = vec3(gbufferModelViewInverse * vec4(viewPos.xyz * 70.0, 1.0));
+				vec3 planeCoord = wpos / (wpos.y + length(wpos.xz) * 1.0);
+
+				vec3 moonPos = vec3(gbufferModelViewInverse * vec4(- sunVec * 70.0, 1.0));
+				vec3 moonCoord = moonPos / (moonPos.y + length(moonPos.xz));
+				vec2 wind = vec2(frametime, 0.0);
+				vec2 skyCoord = planeCoord.xz - moonCoord.xz;
+				skyCoord *= 0.35;
+				float moonNoise = GetCoordDistance(planeCoord.xz, moonCoord.xz + vec2( 0.010, 0.020));
+				for (int i = 1; i < 100; i++) {
+					vec2 coordAdd = (texture2D(noisetex, vec2(i * 1.77)).rg - 0.5) * vec2(0.060);
+					moonNoise = min(moonNoise, GetCoordDistance(planeCoord.xz, moonCoord.xz + coordAdd));
+				}
+				moonNoise = 0.22 - pow(dot2(roundSunMoon), 0.1) * 0.1 +
+							pow(max(moonNoise, 0.0), pow(dot2(roundSunMoon), 0.17) * 0.7);
+
+				float noNoise = min(max(cosS + 0.9988, 0.0) / 0.0005, 1.0);
+				moonNoise = mix(moonNoise, 1.0, pow2(noNoise*noNoise));
+				roundSunMoon *= moonNoise * 1.3;
+			}*/
+
 			#ifdef CLOUDS
 				roundSunMoon *= pow2(pow2(pow2(pow2(pow2(1.0 - cloudMaskR * cloudMaskR * rainStrengthS)))));
 				// This should still be faster than pow()
@@ -317,7 +334,6 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform float timeAngle;
 
 uniform mat4 gbufferModelView;
 

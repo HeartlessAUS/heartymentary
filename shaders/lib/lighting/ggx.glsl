@@ -127,11 +127,7 @@ vec3 GetMetalCol(float f0) {
 }
 
 vec3 GetSpecularHighlight(float smoothness, float metalness, float f0, vec3 specularColor,
-                          vec3 rawAlbedo, vec3 shadow, vec3 normal, vec3 viewPos) {
-    #if !defined SHADOWS && !defined REFLECTION_SPECULAR
-        return vec3(0.0);
-    #endif
-    
+                          vec3 rawAlbedo, vec3 shadow, vec3 normal, vec3 viewPos) {    
     if (dot(shadow, shadow) < 0.001) return vec3(0.0);
 
     #ifdef END

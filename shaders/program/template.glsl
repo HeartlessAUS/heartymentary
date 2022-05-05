@@ -12,8 +12,6 @@ Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
 
 //Uniforms//
 
-//Attributes//
-
 //Optifine Constants//
 
 //Common Variables//
@@ -35,8 +33,6 @@ void main() {
 //Uniforms//
 
 //Attributes//
-
-//Optifine Constants//
 
 //Common Variables//
 

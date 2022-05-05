@@ -16,8 +16,6 @@ uniform float viewWidth, viewHeight;
 
 uniform sampler2D colortex1;
 
-//Optifine Constants//
-
 //Common Functions//
 float GetLuminance(vec3 color) {
 	return dot(color, vec3(0.299, 0.587, 0.114));

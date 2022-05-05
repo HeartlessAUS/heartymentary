@@ -1,10 +1,15 @@
 if (mc_Entity.x ==  31 || mc_Entity.x ==   6 || mc_Entity.x ==  59 || 
     mc_Entity.x == 175 || mc_Entity.x == 176 || mc_Entity.x ==  83 || 
-    mc_Entity.x == 104 || mc_Entity.x == 105 || mc_Entity.x == 11019) // Foliage
+    mc_Entity.x == 104 || mc_Entity.x == 105 || mc_Entity.x == 11019) // Foliage++
     #ifdef NOISY_TEXTURES
         noiseVarying = 1001.0,
     #endif
-    mat = 1.0, lmCoord.x = clamp(lmCoord.x, 0.0, 0.87), quarterNdotUfactor = 0.0;
+    #ifndef SHADOWS
+        normal = upVec, color.rgb *= 0.9,
+    #else
+        mat = 1.0,
+    #endif
+    lmCoord.x = clamp(lmCoord.x, 0.0, 0.87), quarterNdotUfactor = 0.0;
     
 if (mc_Entity.x == 18 || mc_Entity.x == 9600 || mc_Entity.x == 9100) // Leaves, Vine, Lily Pad
     #ifdef COMPBR
@@ -48,28 +53,22 @@ if (mc_Entity.x == 300) // No Vanilla AO
 if (lmCoord.x > 0.99) // Clamp full bright emissives
     lmCoord.x = 0.9;
 
-/*
-if (lmCoord.x > 0.85) { // Reduce lightmap
-    float lightmapO = max(lmCoord.x - 0.85, 0.0);
-    lmCoord.x = 0.85 + lightmapO * 0.75, quarterNdotUfactor = 1.0 - lightmapO * 3.33333;
-}
-*/
-
 #ifdef COMPBR
-    if (mc_Entity.x < 10218.5) {
+    if (mc_Entity.x < 10380.5) {
         if (mc_Entity.x < 10115.5) {
             if (mc_Entity.x < 10052.5) {
                 if (mc_Entity.x < 10008.5) {
                     if (mc_Entity.x < 10002.5) {
                         if (mc_Entity.x == 10000) { // Grass Block
-                            if (color.b < 0.99) { // Grass Block Grass
-                                specR = 8.034, specG = 0.003;
-                            } else { // Grass Block Dirt
+                            #if MC_VERSION > 10710
+                                if (color.b < 0.99) { // Grass Block Grass
+                                    specR = 8.034, specG = 0.003;
+                                } else // Grass Block Dirt
+                            #endif  
                                 specR = 2.035, specG = 0.003;
-                            }
                         }
                         else if (mc_Entity.x == 10001) // Snowy Grass Block
-                            mat = 105.0,
+                            mat = 136.0, // Separation of Snow and Dirt will be handled in terrainFragment.glsl
                             specR = 2.035;
                         else if (mc_Entity.x == 10002) // Sand
                             specR = 80.004, mat = 3.0;
@@ -86,7 +85,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                     }
                 } else {
                     if (mc_Entity.x < 10012.5) {
-                        if (mc_Entity.x == 10009) // Snow, Snow Block
+                        if (mc_Entity.x == 10009) // Snow+, Snow Block
                             specR = 18.037, mat = 3.0;
                         else if (mc_Entity.x == 10010) // Gravel
                             specR = 32.06;
@@ -95,7 +94,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                     } else {
                         if (mc_Entity.x == 10050) // Red Sand
                             specR = 80.115, mat = 3.0;
-                        else if (mc_Entity.x == 10051) // Andesite, Diorite, Granite, Basalt+, Calcite, Tuff, Dripstone+
+                        else if (mc_Entity.x == 10051) // Andesite, Diorite, Granite, Basalt+, Tuff, Dripstone+
                             specR = 12.05;
                         else if (mc_Entity.x == 10052) // Terracottas
                             #ifdef NOISY_TEXTURES
@@ -107,11 +106,16 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
             } else {
                 if (mc_Entity.x < 10106.5) {
                     if (mc_Entity.x < 10102.5) {
-                        if (mc_Entity.x == 10053) // Packed Ice, Blue Ice, Purpur Block+, Beehive
+                        if (mc_Entity.x == 10053) // Packed Ice, Purpur Block+, Beehive
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.4,
                             #endif
                             specR = 20.055;
+                        else if (mc_Entity.x == 10058) // Blue Ice, Calcite
+                            #ifdef NOISY_TEXTURES
+                                noiseVarying = 0.4,
+                            #endif
+                            specR = 20.065, extraSpecular = 1.0;
                         else if (mc_Entity.x == 10101) // Birch Log+
                             specR = 3.055;
                         else if (mc_Entity.x == 10102) // Oak Log+
@@ -122,13 +126,13 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                         else if (mc_Entity.x == 10105) // Spruce Log+, Scaffolding, Cartography Table, Bee Nest
                             specR = 6.06;
                         else if (mc_Entity.x == 10106) // Warped Log+
-                            specR = 10.07, mat = 102.0,
+                            specR = 10.07, mat = 124.0,
                             mipmapDisabling = 1.0;
                     }
                 } else {
                     if (mc_Entity.x < 10111.5) {
                         if (mc_Entity.x == 10107) // Crimson Log+
-                            specR = 10.07, mat = 103.0,
+                            specR = 10.07, mat = 128.0,
                             mipmapDisabling = 1.0;
                         else if (mc_Entity.x == 10108) // Dark Oak Log+
                             specR = 2.04;		
@@ -157,8 +161,8 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                 }
             }
         } else {
-            if (mc_Entity.x < 10207.5) {
-                if (mc_Entity.x < 10201.5) {
+            if (mc_Entity.x < 10338.5) {
+                if (mc_Entity.x < 10312.5) {
                     if (mc_Entity.x < 10118.5) {
                         if (mc_Entity.x == 10116) // Warped Planks+
                             #ifdef NOISY_TEXTURES
@@ -173,12 +177,12 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                         else if (mc_Entity.x == 10118) // Dark Oak Planks+
                             specR = 20.4;
                     } else {
-                        if (mc_Entity.x == 10198) // Stone Bricks++, Dried Kelp Block
+                        if (mc_Entity.x == 10300) // Stone Bricks++, Dried Kelp Block
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.7,
                             #endif
                             specR = 20.09;
-                        else if (mc_Entity.x == 10199) // Nether Ores, Blackstone++
+                        else if (mc_Entity.x == 10304) // Nether Ores, Blackstone++
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 1.5,
                             #endif
@@ -186,44 +190,53 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 specB = -10.0,
                             #endif
                             specR = 12.087, mat = 20000.0, color.rgb = vec3(1.0, 0.7, 1.0);
-                        else if (mc_Entity.x == 10200) // Netherrack, Crimson/Warped Nylium, Block of Amethyst+
+                        else if (mc_Entity.x == 10308) // Netherrack, Crimson/Warped Nylium
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 1.5,
                             #endif
                             specR = 12.087, mat = 20000.0, color.rgb = vec3(1.0, 0.7, 1.0);
-                        else if (mc_Entity.x == 10201) // Polished Andesite, Polished Diorite, Polished Granite, Melon
+                        else if (mc_Entity.x == 10312) // Polished Andesite, Polished Diorite, Polished Granite, Melon
                             specR = 6.085;
                     }
                 } else {
-                    if (mc_Entity.x < 10205.5) {
-                        if (mc_Entity.x == 10202) // Nether Bricks+
+                    if (mc_Entity.x < 10328.5) {
+                        if (mc_Entity.x == 10316) // Nether Bricks+
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 1.5,
                             #endif
                             specR = 12.375, mat = 20000.0, color.rgb = vec3(0.55, 1.0, 1.0);
-                        else if (mc_Entity.x == 10203 || mc_Entity.x == 10204) // Iron Block+
+                        else if (mc_Entity.x == 10320 || mc_Entity.x == 10324) // Iron Block+
                             specR = 6.07, specG = 131.0;
-                        else if (mc_Entity.x == 10205) // Gold Block+
+                        else if (mc_Entity.x == 10328) // Gold Block+
                             specR = 8.1, mat = 30000.0, color.rgb = vec3(1.0, 1.0, 1.0), specG = 1.0;
                     } else {
-                        if (mc_Entity.x == 10206) // Diamond Block
+                        if (mc_Entity.x == 10332) // Diamond Block
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.65,
                             #endif
-                            specR = 100.007, mat = 201.0;
-                        else if (mc_Entity.x == 10207) // Emerald Block
+                            specR = 100.007, mat = 201.0, extraSpecular = 1.0;
+                        else if (mc_Entity.x == 10336) // Emerald Block
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.65,
                             #endif
-                            specR = 7.2, mat = 201.0;
+                            specR = 7.2, mat = 201.0, extraSpecular = 1.0;
+                        else if (mc_Entity.x == 10338) { // Block of Amethyst, Budding Amethyst
+                            mat = 170.0, extraSpecular = 1.0;
+                        }
+                            
                     }
                 }
             } else {
-                if (mc_Entity.x < 10212.5) {
-                    if (mc_Entity.x < 10209.5) {
-                        if (mc_Entity.x == 10208) // Netherite Block
+                if (mc_Entity.x < 10356.5) {
+                    if (mc_Entity.x < 10344.5) {
+                        if (mc_Entity.x == 10340) // Netherite Block
                             specR = 12.135, specG = 0.7;
-                        else if (mc_Entity.x == 10209) // Ancient Debris
+                        else if (mc_Entity.x == 10342) // Amethyst Buds/Cluster
+                            #ifdef COLORED_LIGHT
+                                lightVarying = 2.0,
+                            #endif
+                            mat = 170.0;
+                        else if (mc_Entity.x == 10344) // Ancient Debris
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 2.0,
                             #endif
@@ -232,38 +245,38 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #endif
                             specR = 8.07, specG = 0.7;
                     } else {
-                        if (mc_Entity.x == 10210) // Block of Redstone
+                        if (mc_Entity.x == 10348) // Block of Redstone
                             #ifdef GLOWING_REDSTONE_BLOCK
                                 specB = 7.99, mat = 20000.0, color.rgb = vec3(1.1), color.a = 1.0,
                             #endif
                             specR = 8.05, specG = 1.0;
-                        else if (mc_Entity.x == 10211) // Lapis Lazuli Block
+                        else if (mc_Entity.x == 10352) // Lapis Lazuli Block
                             #ifdef GLOWING_LAPIS_BLOCK
                                 specB = 6.99, mat = 20000.0, color.rgb = vec3(1.13), color.a = 1.0,
                             #endif
                             specR = 16.11;
-                        else if (mc_Entity.x == 10212) // Carpets, Wools
+                        else if (mc_Entity.x == 10356) // Carpets, Wools
                             specR = 2.02, mat = 15000.0, color.rgb = vec3(0.03, 1.0, 0.0), specG = 0.003, lmCoord.x *= 0.96;
                     }
                 } else {
-                    if (mc_Entity.x < 10215.5) {
-                        if (mc_Entity.x == 10213) // Obsidian
+                    if (mc_Entity.x < 10368.5) {
+                        if (mc_Entity.x == 10360) // Obsidian
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 2.0,
                             #endif
-                            specR = 2.15, specG = 0.6, mat = 109.0;
-                        else if (mc_Entity.x == 10214) // Enchanting Table
-                            specR = 2.15, specG = 0.6, mat = 109.0;
-                        else if (mc_Entity.x == 10215) // Chain
+                            specR = 2.15, specG = 0.6, mat = 152.0, extraSpecular = 1.0;
+                        else if (mc_Entity.x == 10364) // Enchanting Table
+                            specR = 2.15, specG = 0.6, mat = 152.0, extraSpecular = 1.0;
+                        else if (mc_Entity.x == 10368) // Chain
                             specR = 0.5, specG = 1.0,
                             lmCoord.x = clamp(lmCoord.x, 0.0, 0.87);
                     } else {
-                        if (mc_Entity.x == 10216) // Cauldron, Hopper, Anvils
-                            specR = 1.08, specG = 1.0, mat = 111.0,
+                        if (mc_Entity.x == 10372) // Cauldron, Hopper, Anvils
+                            specR = 1.08, specG = 1.0, mat = 160.0,
                             lmCoord.x = clamp(lmCoord.x, 0.0, 0.87);
-                        else if (mc_Entity.x == 10217) // Sandstone+
+                        else if (mc_Entity.x == 10376) // Sandstone+
                             specR = 24.029;
-                        else if (mc_Entity.x == 10218) // Red Sandstone+
+                        else if (mc_Entity.x == 10380) // Red Sandstone+
                             specR = 24.085;
                     }
                 }
@@ -271,56 +284,61 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
         }
     } else {
         if (mc_Entity.x < 11036.5) {
-            if (mc_Entity.x < 10231.5) {
-                if (mc_Entity.x < 10225.5) {
-                    if (mc_Entity.x < 10221.5) {
-                        if (mc_Entity.x == 10219) // Quartz+, Daylight Detector, Honeycomb Block
+            if (mc_Entity.x < 10432.5) {
+                if (mc_Entity.x < 10408.5) {
+                    if (mc_Entity.x < 10392.5) {
+                        if (mc_Entity.x == 10384) // Quartz+, Daylight Detector, Honeycomb Block
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.35,
                             #endif
-                            specR = 16.082;
-                        else if (mc_Entity.x == 10220) // Chorus Plant, Chorus Flower Age 5
-                            mat = 112.0, specR = 6.1,
+                            specR = 16.082, extraSpecular = 1.0;
+                        else if (mc_Entity.x == 10388) // Chorus Plant, Chorus Flower Age 5
+                            mat = 164.0, specR = 6.1,
                             mipmapDisabling = 1.0, lmCoord.x = clamp(lmCoord.x, 0.0, 0.87);
-                        else if (mc_Entity.x == 10221) // Chorus Flower Age<=4
+                        else if (mc_Entity.x == 10392) // Chorus Flower Age<=4
                             specB = 5.0001, specR = 5.07,
                             mipmapDisabling = 1.0, lmCoord.x = clamp(lmCoord.x, 0.0, 0.87);
                     } else {
-                        if (mc_Entity.x == 10222) // End Stone++, Smooth Stone+, Lodestone, TNT, Pumpkin+, Mushroom Blocks, Deepslate++
+                        if (mc_Entity.x == 10396) // End Stone++, Smooth Stone+, Lodestone, TNT, Pumpkin+, Mushroom Blocks, Deepslate++
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.5,
                             #endif
                             specR = 12.065;
-                        else if (mc_Entity.x == 10223) // Bone Block
+                        else if (mc_Entity.x == 10400) // Bone Block
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.35,
                             #endif
                             specR = 8.055;
-                        else if (mc_Entity.x == 10224) // Concretes
+                        else if (mc_Entity.x == 10404) // Concretes
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.2,
                             #endif
                             specR = 3.044, mat = 15000.0, color.rgb = vec3(0.03, 1.0, 0.0);
-                        else if (mc_Entity.x == 10225) // Concrete Powders
+                        else if (mc_Entity.x == 10408) // Concrete Powders
                             specR = 6.014, mat = 15000.0, color.rgb = vec3(0.01, 1.0, 0.0);
                     }
                 } else {
-                    if (mc_Entity.x < 10228.5) {
-                        if (mc_Entity.x == 10226) // Bedrock
+                    if (mc_Entity.x < 10420.5) {
+                        if (mc_Entity.x == 10412) // Bedrock
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 2.0,
                             #endif
                             specR = 16.0675;
-                        else if (mc_Entity.x == 10227) // Hay Block, Target
+                        else if (mc_Entity.x == 10416) // Hay Block, Target
                             specR = 16.085, specG = 0.003, mat = 20000.0, color.rgb = vec3(1.0, 0.0, 0.0);
-                        else if (mc_Entity.x == 10228) // Bricks+, Furnaces Unlit, Dispenser, Dropper
+                        else if (mc_Entity.x == 10420) // Bricks+, Furnaces Unlit, Dispenser, Dropper
                             specR = 10.07;
                     } else {
-                        if (mc_Entity.x == 10229) // Farmland Wet
-                            mat = 114.0;
-                        else if (mc_Entity.x == 10230) // Crafting Table
+                        if (mc_Entity.x == 10424) { // Farmland Wet
+                            if (dot(upVec, normal) > 0.75) { // Top (Actual Farmland Wet)
+                                mat = 172.0;
+                            } else {                         // Sides And Bottom (Dirt)
+                                specR = 2.035, specG = 0.003;
+                            }
+                        }
+                        else if (mc_Entity.x == 10428) // Crafting Table
                             specR = 24.06;
-                        else if (mc_Entity.x == 10231) // Cave Vines With Glow Berries
+                        else if (mc_Entity.x == 10432) // Cave Vines With Glow Berries
                             #ifdef COLORED_LIGHT
                                 lightVarying = 3.0,
                             #endif
@@ -330,18 +348,18 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                 }
             } else {
                 if (mc_Entity.x < 11012.5) {
-                    if (mc_Entity.x < 10234.5) {
-                        if (mc_Entity.x == 10232) // Prismarine+
+                    if (mc_Entity.x < 10444.5) {
+                        if (mc_Entity.x == 10436) // Prismarine+
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 1.3,
                             #endif
                             specR = 3.08, specG = 0.75;
-                        else if (mc_Entity.x == 10233) // Dark Prismarine+
+                        else if (mc_Entity.x == 10440) // Dark Prismarine+
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 1.5,
                             #endif
                             specR = 3.11, specG = 0.75;
-                        else if (mc_Entity.x == 10234) // Glazed Terracottas
+                        else if (mc_Entity.x == 10444) // Glazed Terracottas
                             specR = 0.5;
                     } else {
                         if (mc_Entity.x == 11004) // Glowstone
@@ -358,7 +376,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 lightVarying = 4.0,
                             #endif
                             specR = 3.1, specG = 0.75,
-                            lmCoord.x = 0.87, specB = 16.04,
+                            lmCoord.x = 0.85, specB = 16.04,
                             mat = 17000.0, color.rgb = vec3(1.5, 0.67, 2.9),
                             quarterNdotUfactor = 0.0, mipmapDisabling = 1.0;
                         else if (mc_Entity.x == 11012) // Magma Block
@@ -385,9 +403,9 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 lightVarying = 3.0,
                             #endif
                             lmCoord.x = 0.915, specB = 5.099, color.rgb = vec3(0.6), quarterNdotUfactor = 0.0,
-                            specG = 0.63, specR = 0.55, mipmapDisabling = 1.0;
+                            specG = 0.63, specR = 0.55, mipmapDisabling = 1.0, extraSpecular = 1.0;
                         else if (mc_Entity.x == 11024) // Redstone Lamp Unlit
-                            specG = 0.63, specR = 3.15,	mipmapDisabling = 1.0;
+                            specG = 0.63, specR = 3.15,	mipmapDisabling = 1.0, extraSpecular = 1.0;
                     } else {
                         if (mc_Entity.x == 11028) // Jack o'Lantern
                             #ifdef NOISY_TEXTURES
@@ -402,7 +420,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef COLORED_LIGHT
                                 lightVarying = 4.0,
                             #endif
-                            mat = 115.0, lmCoord.x = 0.87;
+                            mat = 176.0, lmCoord.x = 0.87;
                         else if (mc_Entity.x == 11036) // End Rod
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 0.0,
@@ -410,7 +428,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef COLORED_LIGHT
                                 lightVarying = 4.0,
                             #endif
-                            specR = 1.0, lmCoord.x = 0.88, mat = 116.0;
+                            specR = 1.0, lmCoord.x = 0.88, mat = 180.0;
                     }
                 }
             }
@@ -422,7 +440,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
                             #endif
-                            mat = 106.0;
+                            mat = 140.0;
                         else if (mc_Entity.x == 11044) // Redstone Wire
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
@@ -438,23 +456,23 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
                             #endif
-                            mat = 101.0, lmCoord.x = min(lmCoord.x, 0.86), mipmapDisabling = 1.0;
+                            mat = 120.0, lmCoord.x = min(lmCoord.x, 0.86), mipmapDisabling = 1.0;
                     } else {
                         if (mc_Entity.x == 11052) // Redstone Repeater & Comparator Powered
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
                             #endif
-                            mat = 101.0, mipmapDisabling = 1.0;
+                            mat = 120.0, mipmapDisabling = 1.0;
                         else if (mc_Entity.x == 11056) // Redstone Repeater & Comparator Unpowered
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
                             #endif
-                            mat = 101.0, mipmapDisabling = 1.0;
+                            mat = 120.0, mipmapDisabling = 1.0;
                         else if (mc_Entity.x == 11060) // Observer
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
                             #endif
-                            specR = 10.07, mat = 101.0, specB = 1000.0;
+                            specR = 10.07, mat = 120.0, specB = 1000.0;
                     }
                 } else {
                     if (mc_Entity.x < 11072.5) {
@@ -465,7 +483,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
                             #endif
-                            mat = 104.0, mipmapDisabling = 1.0;
+                            mat = 132.0, mipmapDisabling = 1.0;
                         else if (mc_Entity.x == 11068) // Lantern
                             #ifdef COLORED_LIGHT
                                 lightVarying = 3.0,
@@ -479,7 +497,8 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             lmCoord.x = min(lmCoord.x, 0.87), specB = 4.15, mat = 20000.0, color.rgb = vec3(0.0, 1.0, 0.0),
                             specR = 0.5, specG = 1.0;
                     } else {
-                        if (mc_Entity.x == 11076) // Crimson Fungus, Warped Fungus
+                        if (mc_Entity.x == 11076) // Crimson Fungus, Warped Fungus, Twisting Vines, Weeping Vines
+                            quarterNdotUfactor = 0.0,
                             specB = 16.007, mat = 20000.0, color.rgb = vec3(1.0, 0.0, 0.0);
                         else if (mc_Entity.x == 11078) { // Glow Lichen
                             #if EMISSIVE_LICHEN > 0
@@ -501,7 +520,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef COLORED_LIGHT
                                 lightVarying = 3.0,
                             #endif
-                            specR = 10.07, mat = 107.0, lmCoord.x = pow(lmCoord.x, 1.5);
+                            specR = 10.07, mat = 144.0, lmCoord.x = pow(lmCoord.x, 1.35);
                         else if (mc_Entity.x == 11084) // Torch
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 1.5,
@@ -509,7 +528,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef COLORED_LIGHT
                                 lightVarying = 1.0,
                             #endif
-                            lmCoord.x = min(lmCoord.x, 0.86), mat = 108.0, mipmapDisabling = 1.0;
+                            lmCoord.x = min(lmCoord.x, 0.86), mat = 148.0, mipmapDisabling = 1.0;
                     }
                 }
             } else {
@@ -522,7 +541,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef COLORED_LIGHT
                                 lightVarying = 2.0,
                             #endif
-                            lmCoord.x = min(lmCoord.x, 0.86), mat = 108.0, mipmapDisabling = 1.0;
+                            lmCoord.x = min(lmCoord.x, 0.86), mat = 148.0, mipmapDisabling = 1.0;
                         else if (mc_Entity.x == 11092) // Crying Obsidian, Respawn Anchor
                             #ifdef NOISY_TEXTURES
                                 noiseVarying = 1.5,
@@ -530,24 +549,24 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                             #ifdef COLORED_LIGHT
                                 lightVarying = 2.0,
                             #endif
-                            specR = 2.15, specG = 0.6, mat = 109.0,
-                            specB = 0.75, lmCoord.x = min(lmCoord.x, 0.88), mipmapDisabling = 1.0;
+                            specR = 2.15, specG = 0.6, mat = 152.0,
+                            specB = 0.75, lmCoord.x = min(lmCoord.x, 0.88), mipmapDisabling = 1.0, extraSpecular = 1.0;
                         else if (mc_Entity.x == 11096) // Campfire, Powered Lever
                             #ifdef COLORED_LIGHT
                                 lightVarying = 3.0,
                             #endif
-                            lmCoord.x = min(lmCoord.x, 0.885), mat = 110.0;
+                            lmCoord.x = min(lmCoord.x, 0.885), mat = 156.0;
                         else if (mc_Entity.x == 11100) // Soul Campfire
                             #ifdef COLORED_LIGHT
                                 lightVarying = 2.0,
                             #endif
-                            lmCoord.x = min(lmCoord.x, 0.885), mat = 110.0;
+                            lmCoord.x = min(lmCoord.x, 0.885), mat = 156.0;
                     } else {
                         if (mc_Entity.x == 11104) // Jigsaw Block, Structure Block
                             #ifdef SNOW_MODE
                                 noSnow = 1.0,
                             #endif
-                            specB = 8.004, quarterNdotUfactor = 0.0;
+                            specB = 8.003, quarterNdotUfactor = 0.0;
                         else if (mc_Entity.x == 11108) // Sea Pickle
                             #ifdef COLORED_LIGHT
                                 lightVarying = 5.0,
@@ -568,7 +587,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                         if (mc_Entity.x < 11121.5) {
                             if (mc_Entity.x == 11116) // Diamond Ore, Emerald Ore
                                 #ifdef EMISSIVE_ORES
-                                    specB = 0.30, mat = 113.0, mipmapDisabling = 1.0,
+                                    specB = 0.30, mat = 168.0, mipmapDisabling = 1.0,
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.77,
@@ -576,7 +595,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 specR = 20.04;
                             else if (mc_Entity.x == 11117) // Deepslate Diamond Ore, Deepslate Emerald Ore
                                 #ifdef EMISSIVE_ORES
-                                    specB = 0.30, mat = 113.0, mipmapDisabling = 1.0,
+                                    specB = 0.30, mat = 168.0, mipmapDisabling = 1.0,
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.5,
@@ -584,7 +603,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 specR = 12.065;
                             else if (mc_Entity.x == 11120) // Gold Ore, Lapis Ore
                                 #ifdef EMISSIVE_ORES
-                                    specB = 0.08, mat = 113.0, mipmapDisabling = 1.0,
+                                    specB = 0.08, mat = 168.0, mipmapDisabling = 1.0,
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.77,
@@ -592,7 +611,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 specR = 20.04;
                             else if (mc_Entity.x == 11121) // Deepslate Gold Ore, Deepslate Lapis Ore
                                 #ifdef EMISSIVE_ORES
-                                    specB = 0.08, mat = 113.0, mipmapDisabling = 1.0,
+                                    specB = 0.08, mat = 168.0, mipmapDisabling = 1.0,
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.5,
@@ -601,7 +620,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                         } else {
                             if (mc_Entity.x == 11124) // Redstone Ore Unlit
                                 #ifdef EMISSIVE_ORES
-                                    specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
+                                    specB = 4.2, mat = 168.0, mipmapDisabling = 1.0,
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.77,
@@ -609,7 +628,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 specR = 20.04;
                             else if (mc_Entity.x == 11125) // Deepslate Redstone Ore Unlit
                                 #ifdef EMISSIVE_ORES
-                                    specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
+                                    specB = 4.2, mat = 168.0, mipmapDisabling = 1.0,
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.5,
@@ -623,7 +642,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                     noiseVarying = 0.77,
                                 #endif
                                 lmCoord.x *= 0.95,
-                                specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
+                                specB = 4.27, mat = 168.0, mipmapDisabling = 1.0,
                                 specR = 20.04;
                             else if (mc_Entity.x == 11129) // Deepslate Redstone Ore Lit
                                 #ifdef COLORED_LIGHT
@@ -633,16 +652,16 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                     noiseVarying = 0.5,
                                 #endif
                                 lmCoord.x *= 0.95,
-                                specB = 4.27, mat = 113.0, mipmapDisabling = 1.0,
+                                specB = 4.27, mat = 168.0, mipmapDisabling = 1.0,
                                 specR = 12.065;
                         }
                     } else {
                         if (mc_Entity.x < 11135.5) {
                             if (mc_Entity.x == 11132) // Iron Ore
                                 #ifdef EMISSIVE_ORES
-                                #ifdef EMISSIVE_IRON_ORE
-                                    specB = 0.05, mat = 113.0, mipmapDisabling = 1.0, specG = 0.07,
-                                #endif
+                                    #ifdef EMISSIVE_IRON_ORE
+                                        specB = 0.05, mat = 168.0, mipmapDisabling = 1.0, specG = 0.07,
+                                    #endif
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.77,
@@ -650,18 +669,20 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 specR = 20.04;
                             else if (mc_Entity.x == 11133) // Deepslate Iron Ore
                                 #ifdef EMISSIVE_ORES
-                                #ifdef EMISSIVE_IRON_ORE
-                                    specB = 0.05, mat = 113.0, mipmapDisabling = 1.0, specG = 0.07,
-                                #endif
+                                    #ifdef EMISSIVE_IRON_ORE
+                                        specB = 0.05, mat = 168.0, mipmapDisabling = 1.0, specG = 0.07,
+                                    #endif
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.5,
                                 #endif
-                                specR = 20.04;
+                                specR = 12.065;
                         } else {
                             if (mc_Entity.x == 11136) // Copper Ore
                                 #ifdef EMISSIVE_ORES
-                                    specB = 0.20, mat = 113.0, mipmapDisabling = 1.0, specG = 0.1,
+                                    #ifdef EMISSIVE_COPPER_ORE
+                                        specB = 2.04, mat = 168.0, mipmapDisabling = 1.0, specG = 0.1,
+                                    #endif
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.77,
@@ -669,14 +690,16 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
                                 specR = 20.04;
                             else if (mc_Entity.x == 11137) // Deepslate Copper Ore
                                 #ifdef EMISSIVE_ORES
-                                    specB = 0.20, mat = 113.0, mipmapDisabling = 1.0, specG = 0.1,
+                                    #ifdef EMISSIVE_COPPER_ORE
+                                        specB = 2.04, mat = 168.0, mipmapDisabling = 1.0, specG = 0.1,
+                                    #endif
                                 #endif
                                 #ifdef NOISY_TEXTURES
                                     noiseVarying = 0.5,
                                 #endif
-                                specR = 20.04;
+                                specR = 12.065;
                             else if (mc_Entity.x == 11200) // Rails
-                                mat = 117.0, lmCoord.x = clamp(lmCoord.x, 0.0, 0.87), mipmapDisabling = 1.0;
+                                mat = 184.0, lmCoord.x = clamp(lmCoord.x, 0.0, 0.87), mipmapDisabling = 1.0;
                         }
                     }
                 }
@@ -685,7 +708,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
     }
 
     // Too bright near a light source fix
-    if (mc_Entity.x == 99 || mc_Entity.x == 10204)
+    if (mc_Entity.x == 99 || mc_Entity.x == 10324)
         lmCoord.x = clamp(lmCoord.x, 0.0, 0.87);
 
     // Mipmap Fix
@@ -696,7 +719,7 @@ if (lmCoord.x > 0.85) { // Reduce lightmap
 #if !defined COMPBR && defined COLORED_LIGHT
     if (mc_Entity.x < 11048.5) {
         if (mc_Entity.x < 11020.5) {
-            if (mc_Entity.x == 10231) // Cave Vines With Glow Berries
+            if (mc_Entity.x == 10432) // Cave Vines With Glow Berries
                 lightVarying = 3.0;
             else if (mc_Entity.x == 11004) // Glowstone
                 lightVarying = 3.0;

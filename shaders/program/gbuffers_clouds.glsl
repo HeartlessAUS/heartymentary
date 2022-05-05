@@ -21,11 +21,9 @@ Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
 //Uniforms//
 #if !defined CLOUDS && defined OVERWORLD
 	uniform int isEyeInWater;
-	uniform int worldTime;
 
 	uniform float rainStrengthS;
 	uniform float screenBrightness; 
-	uniform float timeAngle, timeBrightness, moonBrightness;
 	uniform float viewWidth, viewHeight;
 	uniform float far;
 
@@ -190,8 +188,6 @@ void main(){
 		uniform float viewWidth;
 		uniform float viewHeight;
 	#endif
-
-	uniform float timeAngle;
 
 	uniform mat4 gbufferModelView;
 #endif

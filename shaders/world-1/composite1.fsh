@@ -2,7 +2,7 @@
 
 #extension GL_ARB_shader_texture_lod : enable
 
-#define OVERWORLD
+#define NETHER
 #define FSH
 
-#include "/program/final.glsl"
+#include "/program/composite1.glsl"

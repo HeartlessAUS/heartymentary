@@ -26,12 +26,11 @@ varying vec4 vTexCoord, vTexCoordAM;
 //Uniforms//
 uniform int frameCounter;
 uniform int isEyeInWater;
-uniform int worldTime;
 uniform int worldDay;
 uniform int moonPhase;
 #define UNIFORM_moonPhase
 
-#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1
+#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1 || SHOW_LIGHT_LEVELS == 1
 	uniform int heldItemId, heldItemId2;
 
 	uniform int heldBlockLightValue;
@@ -44,8 +43,6 @@ uniform float blindFactor, nightVision;
 uniform float far, near;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float shadowFade;
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 uniform float eyeAltitude;
 
@@ -100,8 +97,8 @@ float cloudtime = frametime;
 #endif
 
 #if defined ADV_MAT && defined NORMAL_MAPPING
-vec2 dcdx = dFdx(texCoord.xy);
-vec2 dcdy = dFdy(texCoord.xy);
+	vec2 dcdx = dFdx(texCoord.xy);
+	vec2 dcdy = dFdy(texCoord.xy);
 #endif
 
 #ifdef OVERWORLD
@@ -198,6 +195,8 @@ float GetWaterOpacity(float alpha, float difT, float fresnel, float lViewPos) {
 
 	//Hide shadows not being good enough
 	alpha = max(min(sqrt(lViewPos) * 0.075, 0.9), alpha);
+
+	alpha = min(alpha, 1.0 - nightVision * 0.2);
 
 	return alpha;
 }
@@ -300,6 +299,10 @@ void main() {
 
 			normalMap = GetWaterNormal(worldPos, nViewPos, viewVector, lViewPos);
 			newNormal = clamp(normalize(normalMap * tbnMatrix), vec3(-1.0), vec3(1.0));
+			
+			// Iris' Broken Water Normal Workaround
+			float VdotN = dot(nViewPos, normalize(normal));
+			if (VdotN > 0.0) newNormal = -newNormal;
 		}
 
 		#ifdef ADV_MAT
@@ -512,8 +515,6 @@ void main() {
 		#if defined SEVEN || defined SEVEN_2
 			vec3 specularColor = vec3(0.005, 0.006, 0.018);
 		#endif
-	
-		float fresnelRT = fresnel;
 
 		if (water > 0.5 || moddedfluid > 0.5 || (translucent > 0.5 && albedo.a < 0.95)) {
 			vec4 reflection = vec4(0.0);
@@ -525,7 +526,7 @@ void main() {
 
 			#ifdef REFLECTION
 				vec3 refNormal = mix(newNormal, normal, pow2(pow2(fresnel4)));
-				reflection = SimpleReflection(viewPos, refNormal, dither, fresnelRT, skyLightFactor);
+				reflection = SimpleReflection(viewPos, refNormal, dither, skyLightFactor);
 			#endif
 			
 			#ifdef WATER_TRANSLUCENT_SKY_REF
@@ -625,6 +626,7 @@ void main() {
 			reflection.rgb = max(mix(skyReflection, reflection.rgb, reflection.a), vec3(0.0));
 			
 			albedo.rgb = mix(albedo.rgb, reflection.rgb, fresnel);
+			//if (lightmap.y < 0.998) albedo = vec4(1.0, 0.0, 1.0, 1.0);
 		}
 
 		if (tintedGlass > 0.5) {
@@ -648,6 +650,8 @@ void main() {
 		#if SHOW_LIGHT_LEVELS > 0
 			#if SHOW_LIGHT_LEVELS == 1
 				if (heldItemId == 13001 || heldItemId2 == 13001)
+			#elif SHOW_LIGHT_LEVELS == 3
+				if (heldBlockLightValue > 7.4 || heldBlockLightValue2 > 7.4)
 			#endif
 			if (dot(normal, upVec) > 0.99 && (mat < 0.95 || mat > 1.05) && translucent < 0.5) {
 				#include "/lib/other/indicateLightLevels.glsl"
@@ -671,10 +675,8 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform int worldTime;
 
 uniform float frameTimeCounter;
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 

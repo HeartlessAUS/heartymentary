@@ -88,6 +88,7 @@
 									noise * (1.0 - cloud));
 				
 				cloud += max(noise - cloud * 0.95, 0.0);
+				cloud = mix(cloud, 1.0, rainStrengthS * pow2(noise * noise));
 				gradientMix += 0.2 * (6.0 / sampleCount);
 			}
 
@@ -118,10 +119,11 @@
             weatherSky *= GetLuminance(ambientCol / (weatherSky)) * 1.4;
             weatherSky *= mix(SKY_RAIN_NIGHT, SKY_RAIN_DAY, sunVisibility);
             weatherSky = max(weatherSky, skyColor2 * 0.75); // Lightning Sky Color
+			weatherSky *= rainStrengthS;
 			#ifdef LIGHT_SHAFTS
-            	weatherSky = weatherSky * (10.0 + scattering * 38.0 * (1.0 + sunVisibility));
+            	weatherSky *= 12.5 + scattering * 47.5 * (1.0 + sunVisibility);
 			#else
-            	weatherSky = weatherSky * (10.0 + scattering * 38.0);
+            	weatherSky *= 12.5 + scattering * 47.5;
 			#endif
             cloudUpColor = mix(cloudUpColor, weatherSky, rainStrengthS * rainStrengthS);
 
@@ -316,7 +318,7 @@
 		}
 
 		vec3 starCoord = 0.75 * wpos / (abs(wpos.y) + length(wpos.xz));
-		vec2 starCoord2 = starCoord.xz * 0.7;
+		vec2 starCoord2 = starCoord.xz * 0.5;
 		if (NdotU < 0.0) starCoord2 += 100.0;
 		float starFactor = 1024.0;
 		starCoord2 = floor(starCoord2 * starFactor) / starFactor;
@@ -324,8 +326,9 @@
 		star *= GetNebulaStarNoise(starCoord2.xy);
 		star *= GetNebulaStarNoise(starCoord2.xy+0.1);
 		star *= GetNebulaStarNoise(starCoord2.xy+0.23);
-		star = max(star - 0.825, 0.0);
-		nebulaStars = star * lightCol * 250.0 * (1.0 - NdotUM) * NEBULA_STAR_BRIGHTNESS;
+		star = max(star - 0.7, 0.0);
+		star *= star;
+		nebulaStars = star * lightCol * 120.0 * (1.0 - NdotUM) * NEBULA_STAR_BRIGHTNESS;
 
 		if (dragonBattle) {
 			nebulaStars *= vec3(2.0, 1.0, 0.5);
@@ -361,7 +364,7 @@
 			float skytime = cloudtime;
 		#endif
 
-		vec2 wind = vec2(skytime * 0.00005);
+		vec2 wind = vec2(skytime * 0.0002);
 
 		vec3 smoke = vec3(0.0);
 
@@ -377,7 +380,7 @@
 					noise = max(0.75 - 1.0 / abs(noise - 6.0), 0.0) * 3.0;
 
 			if (noise > 0.0) {
-				noise *= texture2D(noisetex, abs(coord * 0.25) + wind * 8.0).x;
+				noise *= texture2D(noisetex, abs(coord * 0.25) + wind * 8.0).x * 5;
 				float heightNoise = wpos.y;
 				float fireNoise = texture2D(noisetex, abs(coord * 0.2) + (heightNoise + cameraPosition.y * 0.01) * 0.01 + wind * -4.0).x;
 				noise = noise * noise * 3.0 / sampleCount;

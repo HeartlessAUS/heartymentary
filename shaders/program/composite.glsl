@@ -17,7 +17,6 @@ varying vec3 sunVec, upVec;
 uniform int frameCounter;
 uniform int isEyeInWater;
 uniform int worldDay;
-uniform int worldTime;
 
 uniform float isEyeInCave;
 uniform float blindFactor;
@@ -25,7 +24,6 @@ uniform float far, near;
 uniform float frameTimeCounter;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight, aspectRatio;
 uniform float eyeAltitude;
 
@@ -58,15 +56,12 @@ uniform sampler2D depthtex1;
 #endif
 
 #if ((defined BLACK_OUTLINE || defined PROMO_OUTLINE) && defined OUTLINE_ON_EVERYTHING && defined END && defined ENDER_NEBULA) || defined WATER_REFRACT || defined LIGHT_SHAFTS || defined RAINBOW
-	uniform float shadowFade;
 	uniform sampler2D noisetex;
 #endif
 
 #if NIGHT_VISION > 1 || ((defined BLACK_OUTLINE || defined PROMO_OUTLINE) && defined OUTLINE_ON_EVERYTHING)
 	uniform float nightVision;
 #endif
-
-//Attributes//
 
 //Optifine Constants//
 const bool colortex2Clear = false;
@@ -112,14 +107,6 @@ float GetLinearDepth(float depth) {
 	}
 #endif
 
-#ifdef RAINBOW
-	vec3 hsv2rgb(vec3 c) {
-		vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-		vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-		return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-	}
-#endif
-
 //Includes//
 #include "/lib/color/waterColor.glsl"
 #include "/lib/color/skyColor.glsl"
@@ -159,6 +146,11 @@ float GetLinearDepth(float depth) {
 	#include "/lib/outline/blackOutline.glsl"
 #endif
 
+#if defined NETHER_SMOKE && defined NETHER
+	#include "/lib/atmospherics/stuffsForVolumetrics.glsl"
+	#include "/lib/atmospherics/volumetricFog.glsl"
+#endif
+
 //Program//
 void main() {
     vec4 color = texture2D(colortex0, texCoord.xy);
@@ -166,7 +158,6 @@ void main() {
 	float z0 = texture2D(depthtex0, texCoord.xy).r;
 	float z1 = texture2D(depthtex1, texCoord.xy).r;
 	bool water = false;
-
 	if (translucent.b > 0.999 && z1 > z0) {
 		water = true;
 		translucent = vec3(1.0);
@@ -217,7 +208,7 @@ void main() {
 		}
 	#endif
     
-	#ifdef LIGHT_SHAFTS
+	#if defined LIGHT_SHAFTS || defined RAINBOW
 		float dither = Bayer64(gl_FragCoord.xy);
 	#endif
 
@@ -236,15 +227,11 @@ void main() {
 		color.rgb = 0.8 * pow(underwaterColor.rgb * (1.0 - blindFactor), vec3(2.0));
 	}
 
-	if (isEyeInWater == 2) color.rgb *= vec3(1.0, 0.25, 0.01);
-
-	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined RAINBOW
-		#ifdef OVERWORLD
+	if (isEyeInWater == 2) color.rgb *= vec3(2.0, 0.4, 0.02);
+	
+	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined RAINBOW || defined NETHER_SMOKE
 			vec3 nViewPos = normalize(viewPos.xyz);
 			float cosS = dot(nViewPos, lightVec);
-		#else
-			float cosS = 0.0;
-		#endif
 	#endif
 
 	vec3 vl = vec3(0.0);
@@ -263,42 +250,7 @@ void main() {
 	#endif
 
 	#ifdef RAINBOW
-		float rainbowTime = pow2(max(sunVisibility * shadowFade - timeBrightness, 0.0));
-		#ifdef RAINBOW_AFTER_RAIN_CHECK
-			rainbowTime *= sqrt3(max(wetness - 0.1, 0.0) * (1.0 - rainStrength) * (1.0 - rainStrengthS)) * isRainy;
-		#endif
-		if (rainbowTime > 0.001) {
-			vec3 rainbowAlbedo = translucent;
-			float rainbowDistance = max(far, 256.0) * 0.25;
-			float rainbowLength = max(far, 256.0) * 0.75;
-
-			vec4 viewPosZ1 = gbufferProjectionInverse * (vec4(texCoord, z1, 1.0) * 2.0 - 1.0);
-			viewPosZ1 /= viewPosZ1.w;
-			float lViewPosZ1 = length(viewPosZ1.xyz);
-			float lViewPosZ0 = length(viewPos.xyz);
-			
-			float rainbowCoord = 1.0 - (cosS + 0.75) / (0.0625 * RAINBOW_DIAMETER);
-			float rainbowCoordM = pow(rainbowCoord, 1.5);
-				  rainbowCoordM = smoothstep(0.0, 1.0, rainbowCoordM * 0.75) + 0.05;
-			vec3 rainbow = hsv2rgb(vec3(rainbowCoordM, 1.0, 0.5));
-			rainbow = pow(rainbow, vec3(2.2)) * vec3(1.0, 0.3, 1.0);
-
-			float rainbowFactor = clamp(1.0 - rainbowCoord, 0.0, 1.0) * clamp(rainbowCoord, 0.0, 1.0);
-				  rainbowFactor *= rainbowFactor;
-				  rainbowFactor *= min(max(lViewPosZ1 - rainbowDistance, 0.0) / rainbowLength, 1.0);
-				  rainbowFactor *= rainbowTime;
-			if (isEyeInWater == 1) rainbowFactor = 0.0;
-			else if (water) rainbowAlbedo = vec3(0.0);
-
-			if (z1 > z0 && lViewPosZ0 < rainbowDistance + rainbowLength)
-			rainbow *= mix(rainbowAlbedo, vec3(1.0),
-					   clamp((lViewPosZ0 - rainbowDistance) / rainbowLength, 0.0, 1.0));
-			rainbowFactor = rainbowFactor * min(dot3(rainbow * 100.0), 1.0);
-
-			rainbow = clamp(rainbow, vec3(0.0), vec3(1.0)) * 10.0 * RAINBOW_BRIGHTNESS;
-			color.rgb = mix(color.rgb, rainbow, rainbowFactor);
-			vl = mix(vl, vec3(0.0), min(rainbowFactor * 2.0, 1.0));
-		}
+		#include "/lib/atmospherics/rainbow.glsl"
 	#endif
 
 	#if NIGHT_VISION > 1
@@ -310,14 +262,18 @@ void main() {
 			color.rgb = mix(color.rgb, nightVisionFinal, nightVision);
 		}
 	#endif
-	
     /*DRAWBUFFERS:01*/
 	gl_FragData[0] = color;
 	gl_FragData[1] = vec4(vl, 1.0);
+	#if defined NETHER_SMOKE && defined NETHER
+		#ifdef NETHER_SMOKE
+			gl_FragData[1] += getVolumetricFog(depth0, depth1, vlAlbedo, dither, nViewPos, cosS);
+		#endif
+	#endif
 
 	#ifdef VL_CLOUDS
-    /*DRAWBUFFERS:015*/
-	gl_FragData[2] = clouds;
+		/*DRAWBUFFERS:015*/
+		gl_FragData[2] = clouds;
 	#endif
 }
 
@@ -327,7 +283,6 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform float timeAngle;
 
 uniform mat4 gbufferModelView;
 

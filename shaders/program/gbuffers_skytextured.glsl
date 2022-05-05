@@ -29,12 +29,10 @@ uniform vec3 fogColor;
 uniform sampler2D texture;
 
 #if defined OVERWORLD && defined VANILLA_SKYBOX
-	uniform int worldTime;
 	uniform int worldDay;
 
 	uniform float nightVision;
 	uniform float rainStrengthS;
-	uniform float timeAngle, timeBrightness, moonBrightness;
 	uniform float viewWidth, viewHeight;
 	uniform float eyeAltitude;
 
@@ -58,10 +56,11 @@ uniform int renderStage;
 #endif
 
 //Common Variables//
+float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
+
 #if defined OVERWORLD && defined VANILLA_SKYBOX
 	float eBS = eyeBrightnessSmooth.y / 240.0;
 	float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
-	float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
 #endif
 
 //Common Functions//
@@ -78,6 +77,7 @@ uniform int renderStage;
 void main() {
 	#if defined OVERWORLD && defined VANILLA_SKYBOX
 		vec4 albedo = texture2D(texture, texCoord.xy);
+		
 		vec4 screenPos = vec4(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z, 1.0);
 		vec4 viewPos = gbufferProjectionInverse * (screenPos * 2.0 - 1.0);
 		viewPos /= viewPos.w;
@@ -96,7 +96,7 @@ void main() {
 	#endif
 
 	#ifdef END
-		albedo = vec4(endCol * 0.055, 1.0);
+		albedo = vec4(endCol * (0.035 + 0.02 * vsBrightness), 1.0);
 	#endif
 
 	#ifdef TWO
@@ -123,8 +123,6 @@ void main() {
 
 //Uniforms//
 #if defined OVERWORLD && defined VANILLA_SKYBOX
-	uniform float timeAngle;
-
 	uniform mat4 gbufferModelView;
 
 	#if AA == 2 || AA == 3

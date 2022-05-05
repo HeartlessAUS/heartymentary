@@ -7,9 +7,12 @@ Complementary Shaders by EminGT, based on BSL Shaders by Capt Tatsu
 
 //Varyings//
 varying float mat;
-varying float mipmapDisabling;
-varying float quarterNdotUfactor;
-varying float specR, specG, specB;
+varying float mipmapDisabling, quarterNdotUfactor;
+varying float specB;
+
+#ifdef COMPBR
+	varying float specR, specG, extraSpecular;
+#endif
 
 varying vec2 texCoord, lmCoord;
 
@@ -19,7 +22,7 @@ varying vec3 sunVec, upVec;
 varying vec4 color;
 
 #ifdef OLD_LIGHTING_FIX
-varying vec3 eastVec, northVec;
+	varying vec3 eastVec, northVec;
 #endif
 
 #ifdef ADV_MAT
@@ -39,19 +42,19 @@ varying vec3 eastVec, northVec;
 #endif
 
 #ifdef SNOW_MODE
-varying float noSnow;
+	varying float noSnow;
 #endif
 
 #ifdef COLORED_LIGHT
-varying float lightVarying;
+	varying float lightVarying;
 #endif
 
 #ifdef NOISY_TEXTURES
-varying float noiseVarying;
+	varying float noiseVarying;
 #endif
 
 #if defined WORLD_CURVATURE && defined COMPBR
-varying vec3 oldPosition;
+	varying vec3 oldPosition;
 #endif
 
 //////////Fragment Shader//////////Fragment Shader//////////Fragment Shader//////////
@@ -60,11 +63,10 @@ varying vec3 oldPosition;
 //Uniforms//
 uniform int frameCounter;
 uniform int isEyeInWater;
-uniform int worldTime;
 uniform int moonPhase;
 #define UNIFORM_moonPhase
 
-#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1
+#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1 || SHOW_LIGHT_LEVELS == 1
 	uniform int heldItemId, heldItemId2;
 
 	uniform int heldBlockLightValue;
@@ -75,8 +77,6 @@ uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float shadowFade;
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -140,9 +140,9 @@ float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
 float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
-#if defined ADV_MAT && RP_SUPPORT > 2
-vec2 dcdx = dFdx(texCoord.xy);
-vec2 dcdy = dFdy(texCoord.xy);
+#if defined ADV_MAT && RP_SUPPORT > 2 || defined NOISY_TEXTURES || defined GENERATED_NORMALS
+	vec2 dcdx = dFdx(texCoord.xy);
+	vec2 dcdy = dFdy(texCoord.xy);
 #endif
 
 #ifdef OVERWORLD
@@ -200,19 +200,17 @@ float InterleavedGradientNoise() {
 //Program//
 void main() {
 	vec4 albedo = vec4(0.0);
-	vec3 albedoP = vec3(0.0);
 	if (mipmapDisabling < 0.5) {
-		albedoP = texture2D(texture, texCoord).rgb;
 		#if defined END && defined COMPATIBILITY_MODE && !defined SEVEN
+			albedo.rgb = texture2D(texture, texCoord).rgb;
 			albedo.a = texture2DLod(texture, texCoord, 0.0).a; // For BetterEnd compatibility
 		#else
-			albedo.a = texture2D(texture, texCoord).a;
+			albedo = texture2D(texture, texCoord);
 		#endif
 	} else {
-		albedoP = texture2DLod(texture, texCoord, 0.0).rgb;
-		albedo.a = texture2DLod(texture, texCoord, 0.0).a;
+		albedo = texture2DLod(texture, texCoord, 0.0);
 	}
-	albedo.rgb = albedoP;
+	vec3 albedoP = albedo.rgb;
 	if (mat < 10000.0) albedo.rgb *= color.rgb;
 	albedo.rgb = clamp(albedo.rgb, vec3(0.0), vec3(1.0));
 	
@@ -221,6 +219,9 @@ void main() {
 	vec3 lightAlbedo = vec3(0.0);
 	#ifdef GREEN_SCREEN
 		float greenScreen = 0.0;
+	#endif
+	#ifdef BLUE_SCREEN
+		float blueScreen = 0.0;
 	#endif
 
 	#ifdef ADV_MAT
@@ -269,7 +270,6 @@ void main() {
 		#elif SHADOW_SUBSURFACE == 2
 			float subsurface = foliage * SCATTERING_FOLIAGE + leaves * SCATTERING_LEAVES;
 		#endif
-
 		#ifndef SHADOWS
 			if (leaves > 0.5) subsurface *= 0.5;
 			else subsurface = pow2(subsurface * subsurface);
@@ -287,6 +287,10 @@ void main() {
 							if (albedo.g * 1.4 > albedo.r + albedo.b && albedo.g > 0.6 && albedo.r * 2.0 > albedo.b)
 								greenScreen = 1.0;
 						#endif
+						#ifdef BLUE_SCREEN
+							if (albedo.b * 1.4 > albedo.r + albedo.g && albedo.b > 0.2 && abs(albedo.g - albedo.r) < 0.1)
+								blueScreen = 1.0;
+						#endif
 					} else { // 17000 - Limited lAlbedoP
 						lAlbedoP = min(lAlbedoP, color.r) * color.g;
 						if (color.b < 2.0) albedo.b *= color.b;
@@ -303,12 +307,12 @@ void main() {
 				
 			}
 
-		//Integrated Emission
+			//Integrated Emission
 			if (specB > 1.02) {
 				emissive = pow(lAlbedoP, specB) * fract(specB) * 20.0;
 			}
 
-		//Integrated Smoothness
+			//Integrated Smoothness
 			smoothness = specR;
 			if (specR > 1.02) {
 				float lAlbedoPsp = lAlbedoP;
@@ -318,7 +322,7 @@ void main() {
 				smoothness = min(smoothness, 1.0);
 			}
 
-		//Integrated Metalness+
+			//Integrated Metalness+
 			metalness = specG;
 			if (specG > 10.0) {
 				metalness = 3.0 - lAlbedoP * specG * 0.01;
@@ -369,6 +373,10 @@ void main() {
 
 				#if defined NOISY_TEXTURES || defined GENERATED_NORMALS
 					float atlasRatio = atlasSize.x / atlasSize.y;
+					vec2 mipx = dcdx * atlasSize;
+					vec2 mipy = dcdy * atlasSize;
+					float delta = max(dot(mipx, mipx), dot(mipy, mipy));
+					float miplevel = max(0.5 * log2(delta), 0.0);
 				#endif
 			#endif
 			
@@ -376,9 +384,7 @@ void main() {
 				#ifdef GENERATED_NORMALS
 					float packSize = 128.0;
 					float lOriginalAlbedo = length(albedoP);
-					float fovScale = gbufferProjection[1][1] / 1.37;
-					float scale = lViewPos / fovScale;
-					float normalMult1 = clamp(14.0 - scale, 0.0, 8.0) * 0.15 * (1.0 - cauldron);
+					float normalMult1 = max(0.1 - miplevel, 0.0) * 12.0 * (1.0 - cauldron);
 					float normalMult2 = 1.5 * sqrt(NORMAL_MULTIPLIER);
 					float normalClamp1 = 0.05;
 					float normalClamp2 = 0.5;
@@ -480,7 +486,8 @@ void main() {
 				#if defined SNOW_MODE && defined OVERWORLD
 					noiseFactor *= 2.0 * max(0.5 - snowFactor, 0.0);
 				#endif
-				noiseFactor *= noiseVaryingM;
+				noiseFactor *= noiseVaryingM;	
+				noiseFactor *= max(1.0 - miplevel * 0.25, 0.0);
 				noiseTexture = pow(noiseTexture, noiseFactor);
 				albedo.rgb *= noiseTexture;
 				smoothness = min(smoothness * sqrt(2.0 - noiseTexture), 1.0);
@@ -496,7 +503,7 @@ void main() {
 		float fullNdotU = dot(newNormal, upVec);
 		float quarterNdotUp = clamp(0.25 * fullNdotU + 0.75, 0.5, 1.0);
 		float quarterNdotU = quarterNdotUp * quarterNdotUp;
-			  quarterNdotU = mix(1.0, quarterNdotU, quarterNdotUfactor);
+		if (quarterNdotUfactor < 0.5) quarterNdotU = 1.0;
 
 		float smoothLighting = color.a;
 		#ifdef OLD_LIGHTING_FIX 
@@ -635,52 +642,69 @@ void main() {
 					#endif
 					skymapMod = min(length(shadow), 0.5);
 				#endif
-
-				//albedo.rgb = vec3(shadow, 0.0, shadow);
 				
-				vec3 specularHighlight = vec3(0.0);
-				specularHighlight = GetSpecularHighlight(smoothness - cauldron, metalness, f0, specularColor, rawAlbedo,
-												shadow, newNormal, viewPos);
-				#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
-					specularHighlight *= parallaxShadow;
+				#ifdef SPECULAR_SKY_REF
+					vec3 specularHighlight = vec3(0.0);
+					specularHighlight = GetSpecularHighlight(smoothness - cauldron, metalness, f0, specularColor, rawAlbedo,
+													shadow, newNormal, viewPos);
+					#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
+						specularHighlight *= parallaxShadow;
+					#endif
+					#if defined LIGHT_LEAK_FIX && !defined END
+						if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
+						else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
+					#endif
+					albedo.rgb += specularHighlight;
 				#endif
-				#if defined LIGHT_LEAK_FIX && !defined END
-					if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
-					else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
-				#endif
-				albedo.rgb += specularHighlight;
+			#endif
+
+			#if defined COMPBR && defined REFLECTION_SPECULAR
+				smoothness *= 0.5;
+				if (extraSpecular > 0.5) smoothness += 0.5;
 			#endif
 		#endif
 		
 		#if SHOW_LIGHT_LEVELS > 0
 			#if SHOW_LIGHT_LEVELS == 1
 				if (heldItemId == 13001 || heldItemId2 == 13001)
+			#elif SHOW_LIGHT_LEVELS == 3
+				if (heldBlockLightValue > 7.4 || heldBlockLightValue2 > 7.4)
 			#endif
 			if (dot(normal, upVec) > 0.99 && foliage + leaves < 0.1) {
 				#include "/lib/other/indicateLightLevels.glsl"
 			}
 		#endif
+
+		#ifdef GBUFFER_CODING
+			albedo.rgb = vec3(1.0, 1.0, 170.0) / 255.0;
+			albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
+		#endif
+
+		#if THE_FORBIDDEN_OPTION > 1
+			albedo = min(albedo, vec4(1.0));
+		#endif
+
+		#ifdef GREEN_SCREEN
+			if (greenScreen > 0.5) {
+				albedo.rgb = vec3(0.0, 0.08, 0.0);
+				#if defined ADV_MAT && defined REFLECTION_SPECULAR
+					smoothness = 0.0;
+					metalData = 0.0;
+					skymapMod = 0.51;
+				#endif
+			}
+		#endif
+		#ifdef BLUE_SCREEN
+			if (blueScreen > 0.5) {
+				albedo.rgb = vec3(0.0, 0.0, 0.18);
+				#if defined ADV_MAT && defined REFLECTION_SPECULAR
+					smoothness = 0.0;
+					metalData = 0.0;
+					skymapMod = 0.51;
+				#endif
+			}
+		#endif
 	} else discard;
-
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(1.0, 1.0, 170.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.5;
-	#endif
-
-	#if THE_FORBIDDEN_OPTION > 1
-		albedo = min(albedo, vec4(1.0));
-	#endif
-
-	#ifdef GREEN_SCREEN
-		if (greenScreen > 0.5) {
-			albedo.rgb = vec3(0.0, 0.1, 0.0);
-			#if defined ADV_MAT && defined REFLECTION_SPECULAR
-				smoothness = 0.0;
-				metalData = 0.0;
-				skymapMod = 0.51;
-			#endif
-		}
-	#endif
 
     /* DRAWBUFFERS:0 */
     gl_FragData[0] = albedo;
@@ -709,10 +733,8 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform int worldTime;
 
 uniform float frameTimeCounter;
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 
@@ -808,6 +830,8 @@ void main() {
 	#endif
 	
 	color = gl_Color;
+	
+	upVec = normalize(gbufferModelView[1].xyz);
 
 	#ifdef SNOW_MODE
 		noSnow = 0.0;
@@ -819,7 +843,11 @@ void main() {
 		noiseVarying = 1.0;
 	#endif
 	
-	mat = 0.0; quarterNdotUfactor = 1.0; mipmapDisabling = 0.0; specR = 0.0; specG = 0.0; specB = 0.0;
+	mat = 0.0; mipmapDisabling = 0.0; quarterNdotUfactor = 1.0; specB = 0.0;
+	
+	#ifdef COMPBR
+		specR = 0.0; specG = 0.0; extraSpecular = 0.0;
+	#endif
 
 	#include "/lib/ifchecks/terrainVertex.glsl"
 
@@ -830,15 +858,13 @@ void main() {
 	ang = (ang + (cos(ang * 3.14159265358979) * -0.5 + 0.5 - ang) / 3.0) * 6.28318530717959;
 	sunVec = normalize((gbufferModelView * vec4(vec3(-sin(ang), cos(ang) * sunRotationData) * 2000.0, 1.0)).xyz);
 
-	upVec = normalize(gbufferModelView[1].xyz);
-
 	#ifdef OLD_LIGHTING_FIX
 		eastVec = normalize(gbufferModelView[0].xyz);
 		northVec = normalize(gbufferModelView[2].xyz);
 	#endif
 
 	float istopv = gl_MultiTexCoord0.t < mc_midTexCoord.t ? 1.0 : 0.0;
-	vec3 wave = WavingBlocks(position.xyz, istopv);
+	vec3 wave = WavingBlocks(position.xyz, istopv, lmCoord.y);
 	position.xyz += wave;
 
 	#ifdef WORLD_CURVATURE

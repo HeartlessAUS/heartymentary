@@ -1,7 +1,7 @@
-vec4 SimpleReflection(vec3 viewPos, vec3 normal, float dither, float fresnelRT, float skyLightFactor) {
+vec4 SimpleReflection(vec3 viewPos, vec3 normal, float dither, float skyLightFactor) {
 	vec4 reflection = vec4(0.0);
 
-    vec4 pos = Raytrace(depthtex1, viewPos, normal, dither, fresnelRT);
+    vec4 pos = Raytrace(depthtex1, viewPos, normal, dither);
 
 	float border = clamp(1.0 - pow(cdist(pos.st), 50.0), 0.0, 1.0);
 	
@@ -10,7 +10,7 @@ vec4 SimpleReflection(vec3 viewPos, vec3 normal, float dither, float fresnelRT, 
 		reflection.a = float(0.999999 > refDepth);
 		if (reflection.a > 0.001) {
 			reflection.rgb = texture2D(gaux2, pos.st).rgb;
-			if (refDepth > 0.9995) reflection.rgb *= skyLightFactor;
+			if (refDepth > 0.9995) reflection.rgb *= sqrt3(skyLightFactor);
 		}
 		reflection.a *= border;
 	}

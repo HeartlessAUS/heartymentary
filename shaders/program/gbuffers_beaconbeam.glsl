@@ -40,7 +40,7 @@ void main() {
 		if (color.a < 0.9) emissive = pow2(emissive * emissive) * 0.01;
 		else emissive = emissive * 0.1;
 	#else
-		emissive = 1.0;
+		emissive = dot(albedoP, albedoP) * 0.1;
 	#endif
 
 	vec3 emissiveLighting = albedo.rgb * emissive * 20.0 * EMISSIVE_MULTIPLIER;
@@ -101,15 +101,15 @@ void main() {
 	color = gl_Color;
 
 	#ifdef WORLD_CURVATURE
-	vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-	if (gl_ProjectionMatrix[2][2] < -0.5) position.y -= WorldCurvature(position.xz);
-	gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
+		vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
+		if (gl_ProjectionMatrix[2][2] < -0.5) position.y -= WorldCurvature(position.xz);
+		gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
 	#else
-	gl_Position = ftransform();
+		gl_Position = ftransform();
 	#endif
 	
 	#if AA > 1
-	gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
+		gl_Position.xy = TAAJitter(gl_Position.xy, gl_Position.w);
 	#endif
 }
 

@@ -17,12 +17,10 @@ varying vec4 color;
 
 //Uniforms//
 uniform int isEyeInWater;
-uniform int worldTime;
 
 uniform float nightVision;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -87,7 +85,6 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform float timeAngle;
 
 uniform mat4 gbufferModelView;
 

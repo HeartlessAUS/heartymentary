@@ -19,7 +19,6 @@ varying vec4 color;
 //Uniforms//
 uniform int frameCounter;
 uniform int isEyeInWater;
-uniform int worldTime;
 
 #ifdef DYNAMIC_SHADER_LIGHT
 	uniform int heldItemId, heldItemId2;
@@ -32,8 +31,6 @@ uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float shadowFade;
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -156,14 +153,20 @@ void main() {
 		if (albedo.rgb == vec3(0.0) && albedo.a > 0.5) {
 		#endif
 			albedo.a = 1.0;	
-			#if SELECTION_MODE == 1
+			#if SELECTION_MODE == 1 // Select Color
 				albedo.rgb = selectionCol;
 			#endif
-			#if SELECTION_MODE == 2
+			#if SELECTION_MODE == 2 // Versatile
 				albedo.a = 0.1;
 				skymapMod = 0.995;
 			#endif
-			#if SELECTION_MODE == 3
+			#if SELECTION_MODE == 4 // Rainbow
+				float posFactor = worldPos.x + worldPos.y + worldPos.z + cameraPosition.x + cameraPosition.y + cameraPosition.z;
+				albedo.rgb = clamp(abs(mod(fract(frameTimeCounter*0.25 + posFactor*0.1) * 6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0)-1.0,
+							0.0, 1.0);
+				albedo.rgb = pow(albedo.rgb, vec3(2.2)) * SELECTION_I * 0.5;
+			#endif
+			#if SELECTION_MODE == 3 // Disabled
 				albedo.a = 0.0;
 				discard;
 			#endif
@@ -192,10 +195,8 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform int worldTime;
 
 uniform float frameTimeCounter;
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 

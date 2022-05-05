@@ -38,16 +38,13 @@ varying vec4 color;
 uniform int frameCounter;
 uniform int heldItemId, heldItemId2;
 uniform int isEyeInWater;
-uniform int worldTime;
 uniform int moonPhase;
 #define UNIFORM_moonPhase
 
 uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrengthS;
-uniform float screenBrightness; 
-uniform float shadowFade;
-uniform float timeAngle, timeBrightness, moonBrightness;
+uniform float screenBrightness;
 uniform float viewWidth, viewHeight;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -92,8 +89,8 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 #if defined ADV_MAT && RP_SUPPORT > 2
-vec2 dcdx = dFdx(texCoord.xy);
-vec2 dcdy = dFdy(texCoord.xy);
+	vec2 dcdx = dFdx(texCoord.xy);
+	vec2 dcdy = dFdy(texCoord.xy);
 #endif
 
 #ifdef OVERWORLD
@@ -111,7 +108,7 @@ float InterleavedGradientNoise() {
 	float n = 52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y);
 	return fract(n + frameCounter / 8.0);
 }
- 
+
 //Includes//
 #include "/lib/color/blocklightColor.glsl"
 #include "/lib/color/dimensionColor.glsl"
@@ -140,7 +137,7 @@ float InterleavedGradientNoise() {
 
 //Program//
 void main() {
-    vec4 albedoP = texture2D(texture, texCoord);
+	vec4 albedoP = texture2D(texture, texCoord);
 	vec4 albedo = albedoP * color;
 	
 	vec3 newNormal = normal;
@@ -204,7 +201,7 @@ void main() {
 			#endif
 		#endif
 
-    	albedo.rgb = pow(albedo.rgb, vec3(2.2));
+		albedo.rgb = pow(albedo.rgb, vec3(2.2));
 
 		#ifdef WHITE_WORLD
 			albedo.rgb = vec3(0.5);
@@ -214,7 +211,6 @@ void main() {
 
 		float quarterNdotU = clamp(0.25 * dot(newNormal, upVec) + 0.75, 0.5, 1.0);
 			  quarterNdotU*= quarterNdotU;
-			  //quarterNdotU = mix(quarterNdotU, 1.0, lightmap.x);
 
 		float parallaxShadow = 1.0;
 		float materialAO = 1.0;
@@ -249,7 +245,7 @@ void main() {
 		vec3 shadow = vec3(0.0);
 		vec3 lightAlbedo = vec3(0.0);
 		GetLighting(albedo.rgb, shadow, lightAlbedo, viewPos, 0.0, worldPos, lightmap, 1.0, NdotL, quarterNdotU,
-				    parallaxShadow, emissive, 0.0, 0.0, materialAO);
+					parallaxShadow, emissive, 0.0, 0.0, materialAO);
 
 		#ifdef ADV_MAT
 			#if defined OVERWORLD || defined END
@@ -281,27 +277,33 @@ void main() {
 					vec3 specularColor = endCol;
 				#endif
 				
-				vec3 specularHighlight = GetSpecularHighlight(smoothness, metalness, f0, specularColor, rawAlbedo,
-												shadow, newNormal, viewPos);
-				#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
-					specularHighlight *= parallaxShadow;
+				#ifdef SPECULAR_SKY_REF
+					vec3 specularHighlight = GetSpecularHighlight(smoothness, metalness, f0, specularColor, rawAlbedo,
+													shadow, newNormal, viewPos);
+					#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
+						specularHighlight *= parallaxShadow;
+					#endif
+					#ifdef LIGHT_LEAK_FIX
+						if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
+						else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
+					#endif
+					albedo.rgb += specularHighlight;
 				#endif
-				#ifdef LIGHT_LEAK_FIX
-					if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
-					else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
-				#endif
-				albedo.rgb += specularHighlight;
 			#endif
+
+			#if defined COMPBR && defined REFLECTION_SPECULAR
+				smoothness *= 0.5;
+			#endif
+		#endif		
+			
+		#ifdef GBUFFER_CODING
+			albedo.rgb = vec3(0.0, 170.0, 0.0) / 255.0;
+			albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.2;
 		#endif
 	} else discard;
 
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(0.0, 170.0, 0.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.2;
-	#endif
-
-    /* DRAWBUFFERS:0 */
-    gl_FragData[0] = albedo;
+	/* DRAWBUFFERS:0 */
+	gl_FragData[0] = albedo;
 
 	#if defined ADV_MAT && defined REFLECTION_SPECULAR
 	/* DRAWBUFFERS:0361 */
@@ -317,10 +319,8 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform int worldTime;
 
 uniform float frameTimeCounter;
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 
@@ -359,7 +359,7 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 //Program//
 void main() {
 	texCoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
-    
+
 	lmCoord = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	lmCoord = clamp(lmCoord, vec2(0.0), vec2(1.0));
 	lmCoord.x -= max(lmCoord.x - 0.825, 0.0) * 0.75;
@@ -391,7 +391,7 @@ void main() {
 			vTexCoord.xy    = sign(texMinMidCoord) * 0.5 + 0.5;
 		#endif
 	#endif
-    
+	
 	color = gl_Color;
 
 	isMainHand = float(gl_ModelViewMatrix[3][0] > 0.0);

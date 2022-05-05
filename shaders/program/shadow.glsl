@@ -27,7 +27,6 @@ uniform sampler2D noisetex;
 
 //Common Variables//
 #if WORLD_TIME_ANIMATION >= 2
-uniform int worldTime;
 #else
 uniform float frameTimeCounter;
 #endif
@@ -136,19 +135,20 @@ void main() {
 		if (albedo.a < 0.51) discard;
 	}
 	#endif
-
+	
 	gl_FragData[0] = clamp(albedo0, vec4(0.0), vec4(1.0));
 
 	#if defined COLORED_SHADOWS && defined OVERWORLD
-		vec4 albedo1 = albedo;
+		vec4 albedoCS = albedo;
+		albedoCS.rgb *= 1.0 - albedo.a * albedo.a;
 
 		#if defined PROJECTED_CAUSTICS && defined OVERWORLD
-			if (ice > 0.5) albedo1 = (albedo1 * albedo1) * (albedo1 * albedo1);
+			if (ice > 0.5) albedoCS = (albedo * albedo) * (albedo * albedo);
 		#else
-			if (ice > 0.5) albedo1 = vec4(0.0, 0.0, 0.0, 1.0);
+			if (ice > 0.5) albedoCS = vec4(0.0, 0.0, 0.0, 1.0);
 		#endif
 
-		gl_FragData[1] = clamp(albedo1, vec4(0.0), vec4(1.0));
+		gl_FragData[1] = clamp(albedoCS, vec4(0.0), vec4(1.0));
 	#endif
 }
 
@@ -159,12 +159,10 @@ void main() {
 
 //Uniforms//
 #if WORLD_TIME_ANIMATION >= 2
-uniform int worldTime;
 #else
 uniform float frameTimeCounter;
 #endif
 
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 
@@ -213,7 +211,7 @@ void main() {
 	}
 	
 	float istopv = gl_MultiTexCoord0.t < mc_midTexCoord.t ? 1.0 : 0.0;
-	position.xyz += WavingBlocks(position.xyz, istopv);
+	position.xyz += WavingBlocks(position.xyz, istopv, lmCoord.y);
 
 	#ifdef WORLD_CURVATURE
 		position.y -= WorldCurvature(position.xz);
@@ -227,11 +225,8 @@ void main() {
 	if (mc_Entity.x ==  31 || mc_Entity.x ==   6 || mc_Entity.x ==  59 || 
 		mc_Entity.x == 175 || mc_Entity.x == 176 || mc_Entity.x ==  83 || 
 		mc_Entity.x == 104 || mc_Entity.x == 105 || mc_Entity.x == 11019) { // Foliage
-		#ifdef NO_FOLIAGE_SHADOWS
-			mat = 4;
-		#endif
-
-		// Counter Shadow Bias
+		#ifndef NO_FOLIAGE_SHADOWS
+			// Counter Shadow Bias
 			#ifdef OVERWORLD
 				float timeAngleM = timeAngle;
 			#else
@@ -258,12 +253,13 @@ void main() {
 			float biasFactor = sqrt(1.0 - NdotLm * NdotLm) / NdotLm;
 			float bias = (distortBias * biasFactor + 0.05) / shadowMapResolution;
 
-			#ifdef PIXEL_SHADOWS
-				float shadowPixel = 16.0;
-				bias += 0.0025 / shadowPixel;
+			#if PIXEL_SHADOWS > 0
+				bias += 0.0025 / PIXEL_SHADOWS;
 			#endif
 			gl_Position.z -= bias * 11.0;
-		//
+		#else
+			mat = 4;
+		#endif
 	}
 	
 	gl_Position.xy *= 1.0 / distortFactor;

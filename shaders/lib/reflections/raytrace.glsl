@@ -19,7 +19,6 @@ vec4 Raytrace(sampler2D depthtex, vec3 viewPos, vec3 normal, float dither) {
 	#endif
 
 	vec3 start = viewPos;
-
     vec3 vector = reflect(normalize(viewPos), normalize(normal));
     viewPos += vector;
 	vec3 tvector = vector;

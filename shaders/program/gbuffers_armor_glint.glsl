@@ -44,7 +44,6 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform int worldTime;
 
 uniform float frameTimeCounter;
 

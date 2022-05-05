@@ -32,7 +32,6 @@ const bool colortex1MipmapEnabled = true;
 float GetLinearDepth(float depth) {
    return (2.0 * near) / (far + near - depth * (far - near));
 }
-
 //Includes//
 #if AA > 1
 #include "/lib/antialiasing/taa.glsl"

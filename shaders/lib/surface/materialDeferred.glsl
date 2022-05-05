@@ -1,12 +1,19 @@
 void GetMaterials(out float smoothness, out float metalness, out float f0, 
-                  out vec3 normal, out vec3 spec, vec2 coord) {
+                  out vec3 normal, out vec3 rawAlbedo, vec2 coord) {
     vec2 specularData = texture2D(colortex3, coord).rg;
 
 	smoothness = specularData.r;
 
 	#ifdef COMPBR
+		if (smoothness < 0.5) {
+			smoothness /= 0.5;
+			f0 = 1.0;
+		}
+		else {
+			smoothness = (smoothness - 0.5) / 0.5;
+			f0 = 4.0;
+		}
 		metalness = specularData.g;
-		f0 = 0.78 * metalness + 0.02;
 	#else
 		#if RP_SUPPORT == 3
 			f0 = specularData.g;
@@ -19,5 +26,5 @@ void GetMaterials(out float smoothness, out float metalness, out float f0,
 
 	normal = DecodeNormal(texture2D(colortex6, coord).xy);
 
-	spec = texture2D(colortex1, coord).rgb;
+	rawAlbedo = texture2D(colortex1, coord).rgb;
 }

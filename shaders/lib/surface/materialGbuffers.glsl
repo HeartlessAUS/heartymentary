@@ -63,8 +63,7 @@ void GetMaterials(out float smoothness, out float metalness, out float f0, out f
 		#endif
 	#endif
 	
-	materialEmissive *= materialEmissive;
-	materialEmissive *= materialEmissive;
+	materialEmissive = pow(materialEmissive, 2.5 + 2.0 * materialEmissive);
 	emissive = mix(materialEmissive, 1.0, emissive);
 	
 	materialAO = clamp(materialAO, 0.01, 1.0);

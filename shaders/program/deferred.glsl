@@ -1,8 +1,3 @@
-/* 
-BSL Shaders v7.2.01 by Capt Tatsu 
-https://bitslablab.com 
-*/ 
-
 //Common//
 #include "/lib/common.glsl"
 
@@ -123,7 +118,6 @@ void main() {
 
 //Uniforms//
 #ifdef AO
-uniform float timeAngle;
 
 uniform mat4 gbufferModelView;
 #endif

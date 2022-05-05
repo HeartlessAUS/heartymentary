@@ -23,29 +23,30 @@ vec3 Fog1(vec3 color, float lWorldPos, float lViewPos, vec3 nViewPos, vec3 extra
 			color.rgb = mix(color.rgb, artificialFogColor, fog);
 		}
 	#endif
+	#ifdef NETHER
+		#if defined NETHER_FOG // extra = nether smoke (if enabled)
+			#if FOG1_TYPE > 0
+				float fog = lViewPos / far * (1.0/FOG1_DISTANCE_M);
+			#else
+				float fog = lWorldPos / far * (1.0/FOG1_DISTANCE_M);
+			#endif
+			fog *= fog;
+			fog *= fog;
+			fog = 1.0 - exp(-8.0 * fog);
 
-    #if defined NETHER && defined NETHER_FOG // extra = nether smoke (if enabled)
-		#if FOG1_TYPE > 0
-			float fog = lViewPos / far * (1.0/FOG1_DISTANCE_M);
-		#else
-			float fog = lWorldPos / far * (1.0/FOG1_DISTANCE_M);
+			vec3 artificialFogColor = pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4;
+			#ifdef NETHER_SMOKE
+				artificialFogColor += extra * fog;
+			#endif
+			color.rgb = mix(color.rgb, artificialFogColor, fog);
 		#endif
-        fog *= fog;
-        fog *= fog;
-        fog = 1.0 - exp(-8.0 * fog);
-
-		vec3 artificialFogColor = pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4;
-		#ifdef NETHER_SMOKE
-			artificialFogColor += extra * fog;
-		#endif
-		color.rgb = mix(color.rgb, artificialFogColor, fog);
-    #endif
+	#endif
 
     #ifdef END // extra = ender nebula (if enabled)
 		float fog = lWorldPos / far * (1.5/FOG1_DISTANCE_M);
 		fog = 1.0 - exp(-0.1 * pow(fog, 10.0));
 		if (fog > 0.0) {
-			vec3 artificialFogColor = endCol * 0.0584;
+			vec3 artificialFogColor = endCol * (0.035 + 0.02 * vsBrightness);
 			#ifdef ENDER_NEBULA
 				artificialFogColor += extra * fog;
 			#endif
@@ -109,7 +110,8 @@ vec3 Fog2(vec3 color, float lViewPos, vec3 worldPos, vec3 extra) {
 		#endif
 		
 		//duplicate 307309760
-		float fog2 = lViewPos / pow(far, 0.25) * 0.035 * (1.0 + rainStrengthS * FOG2_RAIN_DISTANCE_M) * (1.0 - sunVisibility*0.25*(1.0 - rainStrengthS)) * (3.2/FOG2_DISTANCE_M);
+		float fog2 = lViewPos / pow(far, 0.25) * 0.112 * (1.0 + rainStrengthS * FOG2_RAIN_DISTANCE_M)
+					* (1.0 - sunVisibility * 0.25 * (1.0 - rainStrengthS)) / FOG2_DISTANCE_M;
 		fog2 = (1.0 - (exp(-50.0 * pow(fog2*0.125, 3.25) * eBS)));
 		fog2 *= min(FOG2_OPACITY * (3.0 + rainStrengthS * FOG2_RAIN_OPACITY_M - sunVisibility * 2.0), 1.0);
 		#ifdef FOG2_ALTITUDE_MODE
@@ -123,7 +125,6 @@ vec3 Fog2(vec3 color, float lViewPos, vec3 worldPos, vec3 extra) {
 		float timeBrightness2 = sqrt1(timeBrightness);
 		vec3 fogColor2 = mix(lightCol*0.5, skyColor*skyMult*1.25, timeBrightness2);
 		fogColor2 = mix(ambientNight*ambientNight, fogColor2, sunVisibility8);
-		//if (gl_FragCoord.x > 960) fogColor2 = mix(ambientNight*ambientNight*ambientNight*7.5, fogColor2, sunVisibility8);
 		if (rainStrengthS > 0.0) {
 			float rainStrengthS2 = 1.0 - (1.0 - rainStrengthS) * (1.0 - rainStrengthS);
 			vec3 rainFogColor = FOG2_RAIN_BRIGHTNESS_M * skyColCustom * (0.01 + 0.05 * sunVisibility8 + 0.1 * timeBrightness2);
@@ -148,29 +149,26 @@ vec3 Fog2(vec3 color, float lViewPos, vec3 worldPos, vec3 extra) {
 		#endif
 		fog2 = clamp(fog2, 0.0, 0.125) * (7.0 + fog2);
 		fog2 = 1 - pow(1 - fog2, 2.0 - fog2);
-		vec3 fogColor2 = endCol * 0.0584868;
-		#ifdef ENDER_NEBULA
-			fogColor2 += extra;
-		#endif
+		vec3 fogColor2 = endCol * (0.035 + 0.02 * vsBrightness);
 		color.rgb = mix(color.rgb, fogColor2 * FOG2_END_BRIGHTNESS, fog2 * FOG2_END_OPACITY);
     #endif
-	#ifdef NETHER
-		float fog2 = lViewPos / pow(far, 0.25) * 0.035 * (32.0/FOG2_NETHER_DISTANCE);
+    #ifdef NETHER
+		float fog2 = lViewPos / pow(far, 0.25) * 0.035 * (32.0/FOG2_NETHER_DISTANCE_M);
 		fog2 = 1.0 - (exp(-50.0 * pow(fog2*0.125, 4.0)));
 		#ifdef FOG2_ALTITUDE_MODE
-			float altitudeFactor = clamp((worldPos.y + eyeAltitude + 100 - FOG2_NETHER_ALTITUDE) * 0.01, 0.0, 1.0);
+			float altitudeFactor = clamp((worldPos.y + eyeAltitude + 100.0 - FOG2_NETHER_ALTITUDE) * 0.01, 0.0, 1.0);
 			if (altitudeFactor > 0.75 && altitudeFactor < 1.0) altitudeFactor = pow(altitudeFactor, 1.0 - (altitudeFactor - 0.75) * 4.0);
 			fog2 *= 1.0 - altitudeFactor;
 		#endif
 		fog2 = clamp(fog2, 0.0, 0.125) * (7.0 + fog2);
 		fog2 = 1 - pow(1 - fog2, 2.0 - fog2);
-		vec3 artificialFogColor = pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4;
+		vec3 fogColor2 = netherCol * (0.035 + 0.02 * vsBrightness);
 		#ifdef NETHER_SMOKE
-			artificialFogColor += extra;
+				fogColor2 += extra / 10;
 		#endif
-		vec3 fogColor2 = artificialFogColor * 0.051 * pow(2.5 / 2.25, 1.3);
 		color.rgb = mix(color.rgb, fogColor2 * FOG2_NETHER_BRIGHTNESS, fog2 * FOG2_NETHER_OPACITY);
-    #endif	
+    #endif
+	
     #if defined SEVEN && !defined TWENTY
 		float fog2 = lViewPos / pow(far, 0.25) * 0.035 * (1.0 + rainStrengthS) * (3.2/FOG2_DISTANCE_M);
 		fog2 = 1.0 - (exp(-50.0 * pow(fog2*0.125, 4.0) * eBS));
@@ -195,24 +193,20 @@ vec3 WaterFog(vec3 color, float lViewPos, float fogrange) {
 }
 
 vec3 LavaFog(vec3 color, float lViewPos) {
-	#if MC_VERSION >= 11700
-		bool spectatorFog = gl_Fog.start / far < 0.0;
-	#endif
 	#ifndef LAVA_VISIBILITY
-		float fog = lViewPos * 0.3;
-		fog = (1.0 - exp(-4.0 * fog * fog * fog));
-		#if MC_VERSION >= 11700
-			if (spectatorFog) fog = min(lViewPos * 0.01, 1.0);
-		#endif
+		float fog = (lViewPos - gl_Fog.start) * gl_Fog.scale;
+		fog *= fog;
+		fog = 1.0 - exp(- fog);
+		fog = clamp(fog, 0.0, 1.0);
 	#else
 		float fog = lViewPos * 0.02;
 		fog = 1.0 - exp(-3.0 * fog);
 		#if MC_VERSION >= 11700
-			if (spectatorFog) fog = min(lViewPos * 0.01, 1.0);
+			if (gl_Fog.start / far < 0.0) fog = min(lViewPos * 0.01, 1.0);
 		#endif
 	#endif
 		
-	color.rgb = mix(color.rgb, vec3(0.5), fog);
+	color.rgb = mix(color.rgb, vec3(0.6, 0.35, 0.15), fog); //duplicate 792763950
 	return vec3(color.rgb);
 }
 
@@ -236,7 +230,7 @@ vec3 startFog(vec3 color, vec3 nViewPos, float lViewPos, vec3 worldPos, vec3 ext
 	#if !defined GBUFFER_CODING
 		if (isEyeInWater == 0) {
 			#ifdef FOG2
-				color.rgb = Fog2(color.rgb, lViewPos, worldPos);
+				color.rgb = Fog2(color.rgb, lViewPos, worldPos, extra);
 			#endif
 			#ifdef FOG1
 				color.rgb = Fog1(color.rgb, length(worldPos.xz) * 1.025, lViewPos, nViewPos, extra, NdotU);

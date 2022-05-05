@@ -21,7 +21,6 @@ varying vec4 color;
 //Uniforms//
 uniform int frameCounter;
 uniform int isEyeInWater;
-uniform int worldTime;
 
 #ifdef DYNAMIC_SHADER_LIGHT
 	uniform int heldItemId, heldItemId2;
@@ -37,8 +36,6 @@ uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float shadowFade;
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 uniform float eyeAltitude;
 
@@ -56,7 +53,7 @@ uniform mat4 shadowModelView;
 
 uniform sampler2D texture;
 
-#if ((defined WATER_CAUSTICS || defined CLOUD_SHADOW) && defined OVERWORLD) || defined RANDOM_BLOCKLIGHT || defined END
+#if ((defined WATER_CAUSTICS || defined CLOUD_SHADOW) && defined OVERWORLD) || defined RANDOM_BLOCKLIGHT || defined END || (defined NETHER && defined NETHER_SMOKE)
 uniform sampler2D noisetex;
 #endif
 
@@ -108,7 +105,7 @@ float InterleavedGradientNoise() {
 #include "/lib/atmospherics/sky.glsl"
 #endif
 
-#if defined END && defined ENDER_NEBULA
+#if (defined END && defined ENDER_NEBULA) || (defined NETHER && defined NETHER_SMOKE)
 #include "/lib/atmospherics/skyboxEffects.glsl"
 #include "/lib/util/dither.glsl"
 #endif
@@ -158,7 +155,7 @@ void main() {
 					if (albedo.b > 1.15 * (albedo.r + albedo.g) && albedo.g > albedo.r * 1.25 && albedo.g < 0.425 && albedo.b > 0.75) // Water Particle
 						albedo.rgb = waterColorSqrt.rgb * 1.1 * lAlbedo;
 
-					else if (abs(albedo.r - albedo.g) == 0.0 && albedo.r - 0.5 * albedo.b < 0.06) { // Underwater Particle
+					else if (albedo.r == albedo.g && albedo.r - 0.5 * albedo.b < 0.06) { // Underwater Particle
 						if (isEyeInWater == 1) {
 							albedo.rgb = waterColorSqrt.rgb * 1.1 * lAlbedo;
 							if (fract(gamePos.r + gamePos.g + gamePos.b) > 0.2) discard;
@@ -166,7 +163,7 @@ void main() {
 					}
 
 					else if (color.a < 0.99 && lAlbedo < 1.0) // Campfire Smoke, World Border
-						albedo.a *= 0.2;
+						albedo.a *= 0.2, textured = 0.0;
 
 					else if (max(abs(albedoP.r - albedoP.b), abs(albedoP.b - albedoP.g)) < 0.001) { // Grayscale Particles
 						if (lAlbedo > 0.5 && color.g < 0.5 && color.b > color.r * 1.1 && color.r > 0.3) // Ender Particle, Crying Obsidian Drop
@@ -222,13 +219,27 @@ void main() {
 			#if MC_VERSION >= 11500
 				vlAlbedo = mix(vec3(1.0), albedo.rgb, sqrt1(albedo.a)) * (1.0 - pow(albedo.a, 64.0));
 				
-				if (atlasSize.x > 5.0) // No Fog On Journey Map Waypoints
-				albedo.rgb = startFog(albedo.rgb, nViewPos, lViewPos, worldPos, viewPos.xyz, NdotU);
+				if (atlasSize.x > 5.0) { // No Fog On Journey Map Waypoints
+					vec3 extra = vec3(0.0);
+					#if defined NETHER && defined NETHER_SMOKE
+						float dither = Bayer64(gl_FragCoord.xy);
+						extra = DrawNetherSmoke(viewPos.xyz, dither, pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4);
+					#endif
+					#if defined END && defined ENDER_NEBULA
+						float dither = Bayer64(gl_FragCoord.xy);
+						vec3 nebulaStars = vec3(0.0);
+						vec3 enderNebula = DrawEnderNebula(viewPos.xyz, dither, endCol, nebulaStars);
+						enderNebula = pow(enderNebula, vec3(1.0 / 2.2));
+						enderNebula *= pow(enderNebula, vec3(2.2));
+						extra = enderNebula;
+					#endif
+					albedo.rgb = startFog(albedo.rgb, nViewPos, lViewPos, worldPos, extra, NdotU);
+				}
 			#endif
 		} else discard;
 	#endif
 
-	#ifdef TWO
+	#if defined TWO && !defined PARTICLE_VISIBILITY
 		albedo.a = 1.0;
 	#endif
 
@@ -257,10 +268,8 @@ void main() {
 #ifndef NO_PARTICLES
 
 //Uniforms//
-uniform int worldTime;
 
 uniform float frameTimeCounter;
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 

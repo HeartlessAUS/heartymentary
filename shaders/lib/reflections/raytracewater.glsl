@@ -10,7 +10,7 @@ float cdist(vec2 coord) {
 	return max(abs(coord.s-0.5) * 1.82, abs(coord.t-0.5) * 2.0);
 }
 
-vec4 Raytrace(sampler2D depthtex, vec3 viewPos, vec3 normal, float dither, float fresnelRT) {
+vec4 Raytrace(sampler2D depthtex, vec3 viewPos, vec3 normal, float dither) {
 	vec3 pos = vec3(0.0);
 	float dist = 0.0;
 
@@ -19,12 +19,11 @@ vec4 Raytrace(sampler2D depthtex, vec3 viewPos, vec3 normal, float dither, float
 	#endif
 
 	vec3 start = viewPos;
-	vec3 nViewPos = normalize(viewPos);
-    vec3 vector = 0.5 * reflect(nViewPos, normalize(normal));
+    vec3 vector = 0.5 * reflect(normalize(viewPos), normalize(normal));
     viewPos += vector;
 	vec3 tvector = vector;
 
-	float difFactor = fresnelRT;
+	float difFactor = 0.4;
 
     int sr = 0;
 
@@ -37,16 +36,15 @@ vec4 Raytrace(sampler2D depthtex, vec3 viewPos, vec3 normal, float dither, float
 		dist = length(start - rfragpos);
 
         float err = length(viewPos - rfragpos);
-		float lVector = length(vector);
-		float dif = length(start - rfragpos);
-		if (err < pow(lVector, 1.14) || (dif < difFactor && err > difFactor)) {
+		float lVector = length(vector) * (1.0 + clamp(0.25 * sqrt(dist), 0.3, 0.8));
+		if (err < lVector || (dist < difFactor && err > difFactor)) {
                 sr++;
                 if(sr >= 6) break;
 				tvector -= vector;
                 vector *= 0.1;
 		}
         vector *= 2.0;
-        tvector += vector * (dither * 0.05 + 0.75);
+		tvector += vector * (dither * 0.02 + 0.765);
 		viewPos = start + tvector;
     }
 

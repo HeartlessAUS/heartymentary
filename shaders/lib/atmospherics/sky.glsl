@@ -59,6 +59,7 @@ vec3 GetSkyColor(vec3 lightCol, float NdotU, vec3 nViewPos, bool isReflection) {
     weatherSky *= GetLuminance(ambientCol / (weatherSky)) * 1.4;
     weatherSky *= mix(SKY_RAIN_NIGHT, SKY_RAIN_DAY, sunVisibility);
     weatherSky = max(weatherSky, skyColor2 * 0.75); // Lightning Sky Color
+	weatherSky *= rainStrengthS;
     finalSky = mix(finalSky, weatherSky, rainStrengthS) * mult;
 
     finalSky = pow(finalSky, vec3(1.125));

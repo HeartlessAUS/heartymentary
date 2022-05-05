@@ -48,11 +48,10 @@ varying vec4 color;
 uniform int blockEntityId;
 uniform int frameCounter;
 uniform int isEyeInWater;
-uniform int worldTime;
 uniform int moonPhase;
 #define UNIFORM_moonPhase
 
-#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1
+#if defined DYNAMIC_SHADER_LIGHT || SHOW_LIGHT_LEVELS == 1 || SHOW_LIGHT_LEVELS == 3
 	uniform int heldItemId, heldItemId2;
 
 	uniform int heldBlockLightValue;
@@ -63,8 +62,6 @@ uniform float frameTimeCounter;
 uniform float nightVision;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float shadowFade;
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -92,7 +89,7 @@ uniform sampler2D texture;
 	uniform sampler2D colortex9;
 #endif
 
-#if defined NOISY_TEXTURES || defined GENERATED_NORMALS_121123
+#if defined NOISY_TEXTURES_121123 || defined GENERATED_NORMALS_121123
 	uniform ivec2 atlasSize;
 #endif
 
@@ -108,8 +105,8 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 #if defined ADV_MAT && RP_SUPPORT > 2
-vec2 dcdx = dFdx(texCoord.xy);
-vec2 dcdy = dFdy(texCoord.xy);
+	vec2 dcdx = dFdx(texCoord.xy);
+	vec2 dcdy = dFdy(texCoord.xy);
 #endif
 
 #ifdef OVERWORLD
@@ -228,7 +225,7 @@ void main() {
 					emissive = float(albedo.b > albedo.r) * pow2(length(albedo.rgb));
 				}
 
-				#if defined NOISY_TEXTURES || defined GENERATED_NORMALS_121123
+				#if defined NOISY_TEXTURES_121123 || defined GENERATED_NORMALS_121123
 					float atlasRatio = atlasSize.x / atlasSize.y;
 				#endif
 			#endif
@@ -476,35 +473,42 @@ void main() {
 					vec3 specularColor = endCol;
 				#endif
 				
-				vec3 specularHighlight = GetSpecularHighlight(smoothness, metalness, f0, specularColor, rawAlbedo,
-												shadow, newNormal, viewPos);
-				#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
-					specularHighlight *= parallaxShadow;
+				#ifdef SPECULAR_SKY_REF
+					vec3 specularHighlight = GetSpecularHighlight(smoothness, metalness, f0, specularColor, rawAlbedo,
+													shadow, newNormal, viewPos);
+					#if	defined ADV_MAT && defined NORMAL_MAPPING && defined SELF_SHADOW
+						specularHighlight *= parallaxShadow;
+					#endif
+					#ifdef LIGHT_LEAK_FIX
+						if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
+						else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
+					#endif
+					if (!(blockEntityId == 200)) // No sun/moon reflection on end portals
+					albedo.rgb += specularHighlight;
 				#endif
-				#ifdef LIGHT_LEAK_FIX
-					if (isEyeInWater == 0) specularHighlight *= pow(lightmap.y, 2.5);
-					else specularHighlight *= 0.15 + 0.85 * pow(lightmap.y, 2.5);
-				#endif
-				if (!(blockEntityId == 200)) // No sun/moon reflection on end portals
-				albedo.rgb += specularHighlight;
+			#endif
 
+			#if defined COMPBR && defined REFLECTION_SPECULAR
+				smoothness *= 0.5;
 			#endif
 		#endif
 		
 		#if SHOW_LIGHT_LEVELS > 0
 			#if SHOW_LIGHT_LEVELS == 1
 				if (heldItemId == 13001 || heldItemId2 == 13001)
+			#elif SHOW_LIGHT_LEVELS == 3
+				if (heldBlockLightValue > 7.4 || heldBlockLightValue2 > 7.4)
 			#endif
 			if (dot(normal, upVec) > 0.99) {
 				#include "/lib/other/indicateLightLevels.glsl"
 			}
 		#endif
-	} else discard;
 
-	#ifdef GBUFFER_CODING
-		albedo.rgb = vec3(170.0, 0.0, 170.0) / 255.0;
-		albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.2;
-	#endif
+		#ifdef GBUFFER_CODING
+			albedo.rgb = vec3(170.0, 0.0, 170.0) / 255.0;
+			albedo.rgb = pow(albedo.rgb, vec3(2.2)) * 0.2;
+		#endif
+	} else discard;
 
     /* DRAWBUFFERS:0 */
     gl_FragData[0] = albedo;
@@ -523,10 +527,8 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform int worldTime;
 
 uniform float frameTimeCounter;
-uniform float timeAngle;
 
 uniform vec3 cameraPosition;
 

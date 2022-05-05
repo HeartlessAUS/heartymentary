@@ -17,7 +17,6 @@ varying vec3 sunVec, upVec;
 uniform int frameCounter;
 uniform int isEyeInWater;
 uniform int worldDay;
-uniform int worldTime;
 
 uniform float isEyeInCave;
 uniform float blindFactor, nightVision;
@@ -25,9 +24,7 @@ uniform float far, near;
 uniform float frameTimeCounter;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
-uniform float timeAngle, timeBrightness, moonBrightness;
 uniform float viewWidth, viewHeight, aspectRatio;
-uniform float shadowFade;
 uniform float eyeAltitude;
 
 uniform ivec2 eyeBrightnessSmooth;
@@ -285,15 +282,20 @@ void main() {
 			vec3 fresnel3 = vec3(0.0);
 
 			rawAlbedo *= 5.0;
+			float fresnelFactor = 0.25;
 
 			#ifdef COMPBR
+				if (f0 > 1.1) {
+					fresnel = fresnel * 0.8 + 0.2;
+					fresnelFactor *= 1.5;
+				}
 				fresnel3 = mix(mix(vec3(0.02), rawAlbedo, metalness), vec3(1.0), fresnel);
 				if (metalness <= 0.004 && metalness > 0.0 && skymapMod == 0.0) fresnel3 = vec3(0.0);
-				fresnel3 *= 0.25*smoothness;
+				fresnel3 *= fresnelFactor * smoothness;
 			#else
 				#if RP_SUPPORT == 4
 					fresnel3 = mix(mix(vec3(0.02), rawAlbedo, metalness), vec3(1.0), fresnel);
-					fresnel3 *= 0.25*smoothness;
+					fresnel3 *= fresnelFactor * smoothness;
 				#endif
 				#if RP_SUPPORT == 3
 					fresnel3 = mix(mix(vec3(max(f0, 0.02)), rawAlbedo, metalness), vec3(1.0), fresnel);
@@ -301,7 +303,7 @@ void main() {
 						fresnel3 = ComplexFresnel(fresnel, f0) * 1.5;
 						color.rgb *= 1.5;
 					}
-					fresnel3 *= 0.25*smoothness;
+					fresnel3 *= fresnelFactor * smoothness;
 				#endif
 			#endif
 
@@ -313,24 +315,30 @@ void main() {
 				vec3 skyReflection = vec3(0.0);
 
 				#ifdef REFLECTION_ROUGH
-					vec3 roughPos = worldPos + cameraPosition;
-					roughPos *= 1000.0;
-					//roughPos += fract(frameTimeCounter * 10.0);
-					vec3 roughNoise = texture2D(noisetex, roughPos.xz + roughPos.y).rgb;
-
-					roughNoise = 0.05 * (roughNoise - vec3(0.5));
-
 					float roughness = 1.0 - smoothnessP;
 					#ifdef COMPBR
 						roughness *= 1.0 - 0.35 * float(metalness == 1.0);
 					#endif
 					roughness *= roughness;
+
+					vec3 roughPos = worldPos + cameraPosition;
+					roughPos *= 1000.0;
+					vec3 roughNoise = texture2D(noisetex, roughPos.xz + roughPos.y).rgb;
+					roughNoise = 0.3 * (roughNoise - vec3(0.5));
+					
 					roughNoise *= roughness;
 
-					normal += roughNoise * 6.0;
+					normal += roughNoise;
+					reflection = RoughReflection(viewPos.xyz, normal, dither, smoothness);
+
+					#ifdef DOUBLE_QUALITY_ROUGH_REF
+						vec3 altRoughNormal = normal - roughNoise*2;
+						reflection += RoughReflection(viewPos.xyz, altRoughNormal, dither, smoothness);
+						reflection /= 2.0;
+					#endif
+				#else
+					reflection = RoughReflection(viewPos.xyz, normal, dither, smoothness);
 				#endif
-				
-				reflection = RoughReflection(viewPos.xyz, normal, dither, smoothness);
 
 				float cauldron = float(skymapMod > 0.51 && skymapMod < 0.9905);
 				if (cauldron > 0.5) { 													//Cauldron Reflections
@@ -466,12 +474,8 @@ void main() {
 		#endif
 
 		color.rgb = startFog(color.rgb, nViewPos, lViewPos, worldPos, extra, NdotU);
-
-		//vec3 checkPos = worldPos + cameraPosition + 0.01;
-		//checkPos = fract(checkPos * 0.5);
-		//color.rgb = vec3(checkPos.x > 0.5, checkPos.y > 0.5, checkPos.z > 0.5);
 	
-	} else { /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ 
+	} else { /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/ /**/
 		float NdotU = 0.0;
 
 		vec2 skyBlurOffset[4] = vec2[4](vec2( 0.0,  1.0),
@@ -498,7 +502,7 @@ void main() {
 		#ifdef END
 			#ifdef ENDER_NEBULA
 				color.rgb = enderNebula + nebulaStars;
-				color.rgb += endCol * 0.055;
+				color.rgb += endCol * (0.035 + 0.02 * vsBrightness);
 			#endif
 		#endif
 
@@ -541,7 +545,7 @@ void main() {
 			NdotU = max(dot(normalize(viewPos.xyz), upVec), 0.0);
 			color.rgb = mix(color.rgb, 0.8 * pow(underwaterColor.rgb * (1.0 - blindFactor), vec3(2.0)), 1.0 - NdotU*NdotU);
 		}
-		if (isEyeInWater == 2) color.rgb = vec3(0.5);
+		if (isEyeInWater == 2) color.rgb = vec3(0.6, 0.35, 0.15); //duplicate 792763950
 		if (blindFactor > 0.0) color.rgb *= 1.0 - blindFactor;
 	}
     
@@ -555,7 +559,6 @@ void main() {
 		lightAlbedo = lightAlbedo / sumlightAlbedo;
 		lightAlbedo *= lightAlbedo;
 		lightAlbedo *= BLOCKLIGHT_I * vec3(2.0, 1.8, 2.0);
-		//if (gl_FragCoord.x > 960.0) color.rgb = lightAlbedo;
 
 		float lightSpeed = 0.01;
 		    lightBuffer = mix(lightBuffer, blocklightCol, lightSpeed * 0.25);
@@ -578,7 +581,6 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-uniform float timeAngle;
 
 uniform mat4 gbufferModelView;
 

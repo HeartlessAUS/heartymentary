@@ -64,12 +64,14 @@ vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, 
 		#endif
 	#endif
 	
-	#ifdef END
+	#if defined END
 		float visibility = 0.14285;
 	#endif
-
+	#ifdef NETHER
+		float visibility = 0;
+	#endif
 	if (visibility > 0.0) {
-		#ifdef END
+		#if defined END || defined NETHER
 			float maxDist = 192.0 * (1.5 - isEyeInWater);
 		#else
 			float maxDist = 288.0;
@@ -82,7 +84,7 @@ vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, 
 		vec3 watercol = underwaterColor.rgb / UNDERWATER_I;
 		watercol = pow(watercol, vec3(2.3)) * 55.0;
 
-		#ifdef END
+		#if defined END || defined NETHER 
 			float minDistFactor = 5.0;
 		#else
 			float minDistFactor = 11.0;
@@ -102,7 +104,7 @@ vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, 
 			#endif
 		#endif
 
-		#ifdef END
+		#if defined END || defined NETHER
 			int sampleCount = 9;
 		#else
 			float addition = 0.5;
@@ -144,7 +146,7 @@ vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, 
 		#endif
 
 		for(int i = 0; i < sampleCount; i++) {
-			#ifdef END
+			#if defined END || defined NETHER
 				float minDist = exp2(i + dither) - 0.9;
 			#else
 				float minDist = 0.0;
@@ -170,7 +172,7 @@ vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, 
 			
 				if (depth0 < minDist) vlsample *= vlAlbedo;
 
-				#ifdef END
+				#if defined END || defined NETHER
 					if (isEyeInWater == 1) vlsample *= watercol;
 					vl += vlsample;
 				#else
@@ -199,7 +201,7 @@ vec3 GetVolumetricRays(float depth0, float depth1, vec3 vlAlbedo, float dither, 
 		}
 		vl = sqrt(vl * visibility);
 
-		#ifdef END
+		#if defined END || defined NETHER
 		#else
 			#if LIGHT_SHAFT_MODE == 2
 				if (isEyeInWater == 0) {

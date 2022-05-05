@@ -43,9 +43,8 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 	float shadowTime = 1.0;
 	float water = 0.0;
 
-	#ifdef PIXEL_SHADOWS
-		float shadowPixel = 16.0;
-		worldPos = floor((worldPos + cameraPosition) * shadowPixel + 0.001) / shadowPixel - cameraPosition + 0.5 / shadowPixel;
+	#if PIXEL_SHADOWS > 0 && !defined GBUFFERS_HAND
+		worldPos = floor((worldPos + cameraPosition) * PIXEL_SHADOWS + 0.001) / PIXEL_SHADOWS - cameraPosition + 0.5 / PIXEL_SHADOWS;
 	#endif
 
     #if defined OVERWORLD || defined END || defined SEVEN
@@ -106,8 +105,8 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 					}
 					if (isEyeInWater == 1) offset *= 5.0;
 
-					#ifdef PIXEL_SHADOWS
-						bias += 0.0025 / shadowPixel * (1.0 + subsurface);
+					#if PIXEL_SHADOWS > 0 && !defined GBUFFERS_HAND
+						bias += 0.0025 / PIXEL_SHADOWS * (1.0 + subsurface);
 					#endif
 
 					shadowPos.z -= bias;
@@ -126,8 +125,6 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 							}
 						#endif
 					#endif
-				} else {
-					//albedo.rgb *= 0.0;
 				}
 
 				float shadowSmooth = 16.0;
@@ -171,7 +168,6 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 				float shadowNdotL = min(NdotL + 0.5, 1.0);
 				shadowNdotL *= shadowNdotL;
 				shadow *= mix(1.0, parallaxShadow, shadowNdotL);
-				//albedo.rgb = vec3(shadowNdotL, 0.0, shadowNdotL);
 			#endif
 		#endif
 		
@@ -243,10 +239,8 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 			if (subsurface > 0.001) {
 				float VdotL = clamp(dot(normalize(viewPos.xyz), lightVec), 0.0, 1.0);
 				
-				/*sceneLighting *= 5.0 * (1.0 - fakeShadow) * shadowTime * fullShadow * (1.0 + leaves) * pow(VdotL, 10.0) + 1.0;*/
-				
 				vec3 subsurfaceGlow = (5.5 + 22.0 * leaves) * (1.0 - fakeShadow) * shadowTime * fullShadow * pow(VdotL, 10.0);
-				subsurfaceGlow *= 1.0 - rainStrengthS * 0.8;
+				subsurfaceGlow *= 1.0 - rainStrengthS * 0.68;
 				albedo.rgb += max(albedo.g * normalize(sqrt((albedo.rgb + vec3(0.001)) * lightCol)) * subsurfaceGlow, vec3(0.0));
 			}
 		#endif
@@ -339,10 +333,6 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 
 		vec3 blocklightComplex = texture2D(colortex9, texCoord).rgb;
 		blocklightComplex *= 0.75 + 2.0 * blocklightComplex.b;
-		
-		//float colorDistance = 24.0;
-		//colorDistance = max(colorDistance- lViewPos, 0.0) / colorDistance;
-		//colorDistance = 0.7 * colorDistance;
 
 		blocklightCol = mix(blocklightCol, blocklightComplex, 0.7);
 
@@ -354,7 +344,6 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
     vec3 blockLighting = blocklightCol * newLightmap * newLightmap;
 
 	vec3 minLighting = vec3(0.000000000001 + (MIN_LIGHT * 0.0035 * (vsBrightness*0.0775 + 0.0125)));
-	//minLighting *= vec3(0.85, 1.0, 1.18);
 	#ifndef MIN_LIGHT_EVERYWHERE
 		minLighting *= (1.0 - eBS);
 	#endif
@@ -389,7 +378,8 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 		#if defined PROJECTED_CAUSTICS && !defined GBUFFERS_WATER
 		if (water > 0.0 || isEyeInWater == 1) {
 		#else
-		if (isEyeInWater == 1) {
+		if ((isEyeInWater != 0 && isEyeInWater != 2 && isEyeInWater != 3)) {
+		// Not just doing (isEyeInWater == 1) to fix caustics appearing in shadows on AMD Mesa with Iris
 		#endif
 			vec3 albedoCaustic = albedo;
 
@@ -448,6 +438,4 @@ void GetLighting(inout vec3 albedo, inout vec3 shadow, inout vec3 lightAlbedo, v
 		float albedoStrength = (albedo.r + albedo.g + albedo.b) / 10.0;
 		if (albedoStrength > 1.0) albedo.rgb = albedo.rgb * max(2.0 - albedoStrength, 0.34);
 	#endif
-
-	//if (water > 0.0) albedo = vec3(1.0, 0.0, 1.0);
 }

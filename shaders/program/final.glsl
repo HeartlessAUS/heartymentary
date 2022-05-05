@@ -31,7 +31,7 @@ uniform float viewWidth, viewHeight;
 //Optifine Constants//
 /*
 const int colortex0Format = R11F_G11F_B10F; //main
-const int colortex1Format = RGB8; 			//raw albedo & versatile selection mask & raw translucent & water mask & vl & bloom
+const int colortex1Format = RGB8; 			//raw albedo & raw translucent & water mask & vl & bloom
 const int colortex2Format = RGBA16;		    //temporal stuff
 const int colortex3Format = RGB8; 			//specular & skymapMod
 const int gaux1Format = R8; 				//half-res ao
@@ -53,6 +53,8 @@ const int noiseTextureResolution = 512;
 const float drynessHalflife = 300.0;
 const float wetnessHalflife = 300.0;
 
+const float ambientOcclusionLevel = 1.0;
+
 //Common Functions//
 #if SHARPEN > 0
 	vec2 sharpenOffsets[4] = vec2[4](
@@ -70,7 +72,7 @@ const float wetnessHalflife = 300.0;
 
 		for(int i = 0; i < 4; i++) {
 			vec2 offset = sharpenOffsets[i] * view;
-			color -= texture2D(colortex1, texCoord2 + offset).rgb * mult;
+			color -= texture2DLod(colortex1, texCoord2 + offset, 0.0).rgb * mult;
 		}
 	}
 #endif
@@ -96,15 +98,15 @@ void main() {
 	*/
 
 	#if CHROMATIC_ABERRATION < 1
-		vec3 color = texture2D(colortex1, texCoord2).rgb;
+		vec3 color = texture2DLod(colortex1, texCoord2, 0.0).rgb;
 	#else
 		float midDistX = texCoord2.x - 0.5;
 		float midDistY = texCoord2.y - 0.5;
 		vec2 scale = vec2(1.0, viewHeight / viewWidth);
 		vec2 aberration = vec2(midDistX, midDistY) * (2.0 / vec2(viewWidth, viewHeight)) * scale * CHROMATIC_ABERRATION;
-		vec3 color = vec3(texture2D(colortex1, texCoord2 + aberration).r,
-						  texture2D(colortex1, texCoord2).g,
-						  texture2D(colortex1, texCoord2 - aberration).b);
+		vec3 color = vec3(texture2DLod(colortex1, texCoord2 + aberration, 0.0).r,
+						  texture2DLod(colortex1, texCoord2, 0.0).g,
+						  texture2DLod(colortex1, texCoord2 - aberration, 0.0).b);
 	#endif
 
 	#if SHARPEN > 0
