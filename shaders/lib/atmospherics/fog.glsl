@@ -104,7 +104,7 @@ vec3 Fog1(vec3 color, float lWorldPos, float lViewPos, vec3 nViewPos, vec3 extra
 	return color.rgb;
 }
 
-vec3 Fog2(vec3 color, float lViewPos, vec3 worldPos) {
+vec3 Fog2(vec3 color, float lViewPos, vec3 worldPos, vec3 extra) {
 
     #ifdef OVERWORLD
 		#ifdef FOG2_ALTITUDE_MODE
@@ -156,6 +156,22 @@ vec3 Fog2(vec3 color, float lViewPos, vec3 worldPos) {
 		vec3 fogColor2 = endCol * (0.035 + 0.02 * vsBrightness);
 		color.rgb = mix(color.rgb, fogColor2 * FOG2_END_BRIGHTNESS, fog2 * FOG2_END_OPACITY);
     #endif
+    #ifdef NETHER
+		float fog2 = lViewPos / pow(far, 0.25) * 0.035 * (32.0/FOG2_NETHER_DISTANCE_M);
+		fog2 = 1.0 - (exp(-50.0 * pow(fog2*0.125, 4.0)));
+		#ifdef FOG2_ALTITUDE_MODE
+			float altitudeFactor = clamp((worldPos.y + eyeAltitude + 100.0 - FOG2_NETHER_ALTITUDE) * 0.01, 0.0, 1.0);
+			if (altitudeFactor > 0.75 && altitudeFactor < 1.0) altitudeFactor = pow(altitudeFactor, 1.0 - (altitudeFactor - 0.75) * 4.0);
+			fog2 *= 1.0 - altitudeFactor;
+		#endif
+		fog2 = clamp(fog2, 0.0, 0.125) * (7.0 + fog2);
+		fog2 = 1 - pow(1 - fog2, 2.0 - fog2);
+		vec3 fogColor2 = netherCol * (0.035 + 0.02 * vsBrightness);
+		#ifdef NETHER_SMOKE
+				fogColor2 += extra / 10;
+		#endif
+		color.rgb = mix(color.rgb, fogColor2 * FOG2_NETHER_BRIGHTNESS, fog2 * FOG2_NETHER_OPACITY);
+    #endif				   
 	
     #if defined SEVEN && !defined TWENTY
 		float fog2 = lViewPos / pow(far, 0.25) * 0.035 * (1.0 + rainStrengthS) * (3.2/FOG2_DISTANCE_M);

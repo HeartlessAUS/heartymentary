@@ -83,7 +83,7 @@ void main() {
 		clouds *= clouds;
 	#endif
 
-	#ifdef END
+	#if defined END || defined NETHER
 		vec3 vl = texture2DLod(colortex1, texCoord.xy, 1.5).rgb;
 		vl *= vl;
 	#else
@@ -180,12 +180,16 @@ void main() {
    		vl *= endCol * 0.1 * LIGHT_SHAFT_THE_END_MULTIPLIER;
     	vl *= LIGHT_SHAFT_STRENGTH * (1.0 - rainStrengthS * eBS * 0.875) * shadowFade * (1.0 + isEyeInWater*1.5) * (1.0 - blindFactor);
 	#else
-		vl *= LIGHT_SHAFT_STRENGTH * shadowFade * (1.0 - blindFactor);
+		#if defined NETHER_SMOKE && defined NETHER
+			vl *= netherCol * 0.1 * LIGHT_SHAFT_THE_END_MULTIPLIER;
+			vl *= LIGHT_SHAFT_STRENGTH * (1.0 - rainStrengthS * eBS * 0.875) * shadowFade * (1.0 + isEyeInWater*1.5) * (1.0 - blindFactor);
+		#else
+			vl *= LIGHT_SHAFT_STRENGTH * shadowFade * (1.0 - blindFactor);
 
-		float vlFactor = (1.0 - min((timeBrightness)*2.0, 0.75));
-		vlFactor = mix(vlFactor, 0.05, rainStrengthS);
-		if (isEyeInWater == 1) vlFactor = 3.0;
-		vl *= vlFactor * 1.15;
+			float vlFactor = (1.0 - min((timeBrightness)*2.0, 0.75));
+			vlFactor = mix(vlFactor, 0.05, rainStrengthS);
+			if (isEyeInWater == 1) vlFactor = 3.0;
+			vl *= vlFactor * 1.15;
 	#endif
 
 	#if NIGHT_VISION > 1
@@ -194,7 +198,7 @@ void main() {
 		}
 	#endif
 
-	#ifdef END
+	#if defined END || defined NETHER_SMOKE && defined NETHER
 		color.rgb += vl;
 	#else
 		vec3 addedColor = color.rgb + vl * lightShaftTime;

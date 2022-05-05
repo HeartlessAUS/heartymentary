@@ -157,6 +157,11 @@ float GetLinearDepth(float depth) {
 	#include "/lib/outline/blackOutline.glsl"
 #endif
 
+#if defined NETHER_SMOKE && defined NETHER
+	#include "/lib/atmospherics/stuffsForVolumetrics.glsl"
+	#include "/lib/atmospherics/volumetricFog.glsl"
+#endif
+
 //Program//
 void main() {
     vec4 color = texture2D(colortex0, texCoord.xy);
@@ -265,12 +270,13 @@ void main() {
 
 	if (isEyeInWater == 2) color.rgb *= vec3(2.0, 0.4, 0.02);
 
-	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined RAINBOW
+	#if defined LIGHT_SHAFTS || defined VL_CLOUDS || defined RAINBOW || defined NETHER_SMOKE
 		#ifdef OVERWORLD
 			vec3 nViewPos = normalize(viewPos.xyz);
 			float cosS = dot(nViewPos, lightVec);
 		#else
-			float cosS = 0.0;
+			vec3 nViewPos = normalize(viewPos.xyz);
+			float cosS = dot(nViewPos, lightVec);
 		#endif
 	#endif
 
@@ -306,6 +312,11 @@ void main() {
     /*DRAWBUFFERS:01*/
 	gl_FragData[0] = color;
 	gl_FragData[1] = vec4(vl, 1.0);
+	#if defined NETHER_SMOKE && defined NETHER
+		#ifdef NETHER_SMOKE
+			gl_FragData[1] += getVolumetricFog(depth0, depth1, vlAlbedo, dither, nViewPos, cosS);
+		#endif
+	#endif					 
 
 	#ifdef VL_CLOUDS
     /*DRAWBUFFERS:015*/

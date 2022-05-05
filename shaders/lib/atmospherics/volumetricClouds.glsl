@@ -1,24 +1,41 @@
+#if defined NETHER && defined NETHER_SMOKE
+	#include "/lib/atmospherics/skyboxEffects.glsl"
+#endif										  
 vec4 GetVolumetricClouds(float depth0, float depth1, vec3 vlAlbedo, float dither, vec4 viewPos) {
     vec4 clouds = vec4(0.0);
+	#ifdef OVERWORLD
+		//Color+
+		float sunVisibility2 = sunVisibility * sunVisibility;
+		float sunVisibility4 = sunVisibility2 * sunVisibility2;
 
-    //Color+
-    float sunVisibility2 = sunVisibility * sunVisibility;
-    float sunVisibility4 = sunVisibility2 * sunVisibility2;
+		vec3 cloudNightColor = ambientCol * 2.0;
+		vec3 cloudDayColor = pow(lightCol, vec3(1.5)) * (0.5 + 0.5 * timeBrightness);
+		vec3 cloudRainColor = normalize(pow(lightCol, vec3(1.0 + sunVisibility4))) * (0.015 + 0.1 * sunVisibility4 + 0.1 * timeBrightness);
 
-    vec3 cloudNightColor = ambientCol * 2.0;
-    vec3 cloudDayColor = pow(lightCol, vec3(1.5)) * (0.5 + 0.5 * timeBrightness);
-    vec3 cloudRainColor = normalize(pow(lightCol, vec3(1.0 + sunVisibility4))) * (0.015 + 0.1 * sunVisibility4 + 0.1 * timeBrightness);
-
-    vec3 cloudUpColor = mix(cloudNightColor, cloudDayColor, sunVisibility4);
-         cloudUpColor = mix(cloudUpColor, cloudRainColor, rainStrengthS);
-    
-    vec3 cloudDownColor = cloudUpColor * 0.35;
+		vec3 cloudUpColor = mix(cloudNightColor, cloudDayColor, sunVisibility4);
+			 cloudUpColor = mix(cloudUpColor, cloudRainColor, rainStrengthS);
+		
+		vec3 cloudDownColor = cloudUpColor * 0.35;
+		
+		float cloudAmountM = 0.075 * CLOUD_AMOUNT * (1.0 - 0.35 * rainStrengthS);
+	#endif
 	
-    float cloudAmountM = 0.075 * CLOUD_AMOUNT * (1.0 - 0.35 * rainStrengthS);
-
+	#ifdef NETHER
+		#ifdef NETHER_SMOKE
+			vec3 extra = DrawNetherSmoke(viewPos.xyz, dither, pow((netherCol * 2.5) / NETHER_I, vec3(2.2)) * 4);
+		#endif
+		vec3 cloudUpColor = netherCol;
+		vec3 cloudDownColor = cloudUpColor * cloudUpColor * 20;
+		float cloudAmountM = 0.055 * CLOUD_AMOUNT;
+	#endif	
     //Settings
-    float cloudAltitude = 128.0;
-    float cloudThickness = 24.0;
+	#ifdef OVERWORLD
+		float cloudAltitude = 140.0;
+		float cloudThickness = 24.0;
+	#else
+		float cloudAltitude = 15.0;
+		float cloudThickness = 100.0;
+	#endif
     int sampleCount = 20;
     float minDistFactor = 160.0 / sampleCount * sqrt(far / 256.0);
 
@@ -54,9 +71,12 @@ vec4 GetVolumetricClouds(float depth0, float depth1, vec3 vlAlbedo, float dither
         blend *= blend;
         vec3 cloudColorSample = mix(cloudDownColor, cloudUpColor, blend);
         if (depth0 < minDist) cloudColorSample *= vlAlbedo;
+		
+  		#if defined NETHER && defined NETHER_SMOKE
+			cloudColorSample += extra + extra;
+		#endif
         clouds.rgb = mix(cloudColorSample, clouds.rgb, min(clouds.a, 1.0));
-        
-        clouds.a += smoke * 256.0 / sampleCount;
+		clouds.a += smoke * 256.0 / sampleCount;
     }
 
     clouds *= 0.9;
