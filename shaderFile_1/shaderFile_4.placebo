@@ -1,7 +1,7 @@
-shaderFile_BSL.placebo
-shaderFile_Compatibility.placebo
-shaderFile_Extended.placebo
-shaderFile_Improved.placebo
-shaderFile_Utility.placebo
-shaderFile_Versatile.placebo
-shaderFile_Visibility.placebo
+shaderFile_A_BSL.placebo
+shaderFile_B_Compatibility.placebo
+shaderFile_C_Extended.placebo
+shaderFile_D_Improved.placebo
+shaderFile_E_Utility.placebo
+shaderFile_F_Versatile.placebo
+shaderFile_G_Visibility.placebo

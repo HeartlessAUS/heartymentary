@@ -44,15 +44,19 @@ uniform mat4 shadowProjection;
 uniform mat4 shadowModelView;
 
 #if ((defined WATER_CAUSTICS || defined CLOUD_SHADOW) && defined OVERWORLD) || defined RANDOM_BLOCKLIGHT
-uniform sampler2D noisetex;
+	uniform sampler2D noisetex;
 #endif
 
 #ifdef COLORED_LIGHT
-uniform sampler2D colortex9;
+	uniform sampler2D colortex9;
 #endif
 
 #if MC_VERSION >= 11700
-uniform int renderStage;
+	uniform int renderStage;
+#endif
+
+#if MC_VERSION >= 11900
+	uniform float darknessLightFactor;
 #endif
 
 //Common Variables//
@@ -61,9 +65,9 @@ float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
 float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
 
 #if WORLD_TIME_ANIMATION >= 2
-float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
+	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
 #else
-float frametime = frameTimeCounter * ANIMATION_SPEED;
+	float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 #ifdef OVERWORLD
@@ -76,34 +80,27 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 float GetLuminance(vec3 color) {
 	return dot(color,vec3(0.299, 0.587, 0.114));
 }
-
-float InterleavedGradientNoise() {
-	float n = 52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y);
-	return fract(n + frameCounter / 8.0);
-}
  
 //Includes//
 #include "/lib/color/blocklightColor.glsl"
 #include "/lib/color/dimensionColor.glsl"
 #include "/lib/util/spaceConversion.glsl"
 
-#ifdef WATER_CAUSTICS
-#ifdef OVERWORLD
-#include "/lib/color/waterColor.glsl"
-#endif
+#if defined WATER_CAUSTICS && defined OVERWORLD
+	#include "/lib/color/waterColor.glsl"
 #endif
 
 #include "/lib/lighting/forwardLighting.glsl"
 
 #if SELECTION_MODE == 1
-#include "/lib/color/selectionColor.glsl"
+	#include "/lib/color/selectionColor.glsl"
 #endif
 
 #if AA == 2 || AA == 3
-#include "/lib/util/jitter.glsl"
+	#include "/lib/util/jitter.glsl"
 #endif
 #if AA == 4
-#include "/lib/util/jitter2.glsl"
+	#include "/lib/util/jitter2.glsl"
 #endif
 
 //Program//
@@ -164,7 +161,7 @@ void main() {
 				float posFactor = worldPos.x + worldPos.y + worldPos.z + cameraPosition.x + cameraPosition.y + cameraPosition.z;
 				albedo.rgb = clamp(abs(mod(fract(frameTimeCounter*0.25 + posFactor*0.1) * 6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0)-1.0,
 							0.0, 1.0);
-				albedo.rgb = pow(albedo.rgb, vec3(2.2)) * SELECTION_I * 0.5;
+				albedo.rgb = pow(albedo.rgb, vec3(2.2)) * SELECTION_I * SELECTION_I * 0.5;
 			#endif
 			#if SELECTION_MODE == 3 // Disabled
 				albedo.a = 0.0;
@@ -195,21 +192,19 @@ void main() {
 #ifdef VSH
 
 //Uniforms//
-
 uniform float frameTimeCounter;
+uniform float viewWidth, viewHeight;
 
 uniform vec3 cameraPosition;
 
 uniform mat4 gbufferModelView, gbufferModelViewInverse;
 
 #if AA > 1
-uniform int frameCounter;
-
-uniform float viewWidth, viewHeight;
+	uniform int frameCounter;
 #endif
 
 #if MC_VERSION >= 11700
-uniform int renderStage;
+	uniform int renderStage;
 #endif
 
 //Attributes//
@@ -218,9 +213,9 @@ attribute vec4 mc_midTexCoord;
 
 //Common Variables//
 #if WORLD_TIME_ANIMATION >= 2
-float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
+	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
 #else
-float frametime = frameTimeCounter * ANIMATION_SPEED;
+	float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 #ifdef OVERWORLD
@@ -235,14 +230,14 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 
 //Includes//
 #if AA == 2 || AA == 3
-#include "/lib/util/jitter.glsl"
+	#include "/lib/util/jitter.glsl"
 #endif
 #if AA == 4
-#include "/lib/util/jitter2.glsl"
+	#include "/lib/util/jitter2.glsl"
 #endif
 
 #ifdef WORLD_CURVATURE
-#include "/lib/vertex/worldCurvature.glsl"
+	#include "/lib/vertex/worldCurvature.glsl"
 #endif
 
 //Program//
@@ -263,18 +258,30 @@ void main() {
 
 	upVec = normalize(gbufferModelView[1].xyz);
 
-	#ifdef WORLD_CURVATURE
-		#if MC_VERSION >= 11700
-			if (renderStage != 14) { // Because Optifine can't patch the code below, results in the selection outline disappearing
-		#endif
-		vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
-		position.y -= WorldCurvature(position.xz);
-		gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
-		#if MC_VERSION >= 11700
-			} else gl_Position = ftransform();
+	#ifndef GBUFFERS_LINE
+		#ifdef WORLD_CURVATURE
+			vec4 position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
+			position.y -= WorldCurvature(position.xz);
+			gl_Position = gl_ProjectionMatrix * gbufferModelView * position;
+		#else
+			gl_Position = ftransform();
 		#endif
 	#else
-		gl_Position = ftransform();
+		float lineWidth = 2.0;
+		vec2 screenSize = vec2(viewWidth, viewHeight);
+		const mat4 VIEW_SCALE = mat4(mat3(1.0 - (1.0 / 256.0)));
+		vec4 linePosStart = projectionMatrix * VIEW_SCALE * modelViewMatrix * vec4(vaPosition, 1.0);
+		vec4 linePosEnd = projectionMatrix * VIEW_SCALE * modelViewMatrix * (vec4(vaPosition + vaNormal, 1.0));
+		vec3 ndc1 = linePosStart.xyz / linePosStart.w;
+		vec3 ndc2 = linePosEnd.xyz / linePosEnd.w;
+		vec2 lineScreenDirection = normalize((ndc2.xy - ndc1.xy) * screenSize);
+		vec2 lineOffset = vec2(-lineScreenDirection.y, lineScreenDirection.x) * lineWidth / screenSize;
+		if (lineOffset.x < 0.0)
+			lineOffset *= -1.0;
+		if (gl_VertexID % 2 == 0)
+			gl_Position = vec4((ndc1 + vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
+		else
+			gl_Position = vec4((ndc1 - vec3(lineOffset, 0.0)) * linePosStart.w, linePosStart.w);
 	#endif
 	
 	#if AA > 1

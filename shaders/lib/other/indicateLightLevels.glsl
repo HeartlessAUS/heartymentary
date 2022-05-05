@@ -2,7 +2,7 @@
     #if MC_VERSION < 11800
         float lxMin = 0.533334;
     #else
-        float lxMin = 0.0;
+        float lxMin = 0.000001;
     #endif
         float lyMin = 0.533334;
 #else

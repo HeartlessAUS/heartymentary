@@ -20,9 +20,9 @@ uniform float blindFactor;
 uniform float rainStrengthS;
 uniform float screenBrightness; 
 uniform float viewWidth, viewHeight;
-uniform float rainStrength;
+
 uniform ivec2 eyeBrightnessSmooth;
-uniform vec3 fogColor;
+
 uniform vec3 skyColor;
 
 uniform mat4 gbufferProjectionInverse;
@@ -38,9 +38,18 @@ uniform sampler2D colortex1;
 	uniform float nightVision;
 #endif
 
-//Optifine Constants//
-const bool colortex1MipmapEnabled = true;
+#if MC_VERSION >= 11900
+	uniform float darknessFactor;
+#endif
 
+//Optifine Constants//
+#if !(LIGHT_SHAFT_QUALITY == 3)
+	const bool colortex1MipmapEnabled = true;
+#endif
+
+#ifdef VL_CLOUDS
+	const bool colortex5MipmapEnabled = true;
+#endif
 
 //Common Variables//
 float eBS = eyeBrightnessSmooth.y / 240.0;
@@ -61,7 +70,6 @@ float GetLuminance(vec3 color) {
 
 //Program//
 void main() {
-
     vec4 color = texture2D(colortex0,texCoord.xy);
 
 	#ifdef VL_CLOUDS
@@ -75,7 +83,7 @@ void main() {
 		clouds *= clouds;
 	#endif
 
-	#if defined END || defined NETHER
+	#ifdef END
 		vec3 vl = texture2DLod(colortex1, texCoord.xy, 1.5).rgb;
 		vl *= vl;
 	#else
@@ -101,6 +109,9 @@ void main() {
 		vec3 vl = vlSum;
 
 		vl *= vl;
+	#endif
+	#if MC_VERSION >= 11900
+		vl *= 1.0 - darknessFactor;
 	#endif
 	vec3 vlP = vl;
 
@@ -169,17 +180,12 @@ void main() {
    		vl *= endCol * 0.1 * LIGHT_SHAFT_THE_END_MULTIPLIER;
     	vl *= LIGHT_SHAFT_STRENGTH * (1.0 - rainStrengthS * eBS * 0.875) * shadowFade * (1.0 + isEyeInWater*1.5) * (1.0 - blindFactor);
 	#else
-		#if defined NETHER_SMOKE && defined NETHER
-			vl *= netherCol * 0.1 * LIGHT_SHAFT_THE_END_MULTIPLIER;
-			vl *= LIGHT_SHAFT_STRENGTH * (1.0 - rainStrengthS * eBS * 0.875) * shadowFade * (1.0 + isEyeInWater*1.5) * (1.0 - blindFactor);
-		#else
-			vl *= LIGHT_SHAFT_STRENGTH * shadowFade * (1.0 - blindFactor);
+		vl *= LIGHT_SHAFT_STRENGTH * shadowFade * (1.0 - blindFactor);
 
-			float vlFactor = (1.0 - min((timeBrightness)*2.0, 0.75));
-			vlFactor = mix(vlFactor, 0.05, rainStrengthS);
-			if (isEyeInWater == 1) vlFactor = 3.0;
-			vl *= vlFactor * 1.15;
-		#endif
+		float vlFactor = (1.0 - min((timeBrightness)*2.0, 0.75));
+		vlFactor = mix(vlFactor, 0.05, rainStrengthS);
+		if (isEyeInWater == 1) vlFactor = 3.0;
+		vl *= vlFactor * 1.15;
 	#endif
 
 	#if NIGHT_VISION > 1
@@ -188,27 +194,28 @@ void main() {
 		}
 	#endif
 
-	#if defined END || defined NETHER_SMOKE && defined NETHER
+	#ifdef END
 		color.rgb += vl;
 	#else
-			vec3 addedColor = color.rgb + vl * lightShaftTime;
-			#if LIGHT_SHAFT_MODE == 2
-				vec3 vlMixBlend = vlP * (1.0 - 0.5 * rainStrengthS);
-			#else
-				vec3 vlMixBlend = vlP * 0.5;
-				vlP *= 0.75;
-			#endif
-			float mixedTime = sunVisibility < 0.5 ?
-							  sqrt3(max(moonBrightness - 0.3, 0.0) / 0.7) * lightShaftTime
-							  : pow2(pow2((sunVisibilityLSM - 0.5) * 2.0));
-			vec3 mixedColor = mix(color.rgb, vl / max(vlP, 0.01), vlMixBlend * mixedTime);
-			color.rgb = mix(mixedColor, addedColor, sunVisibility * (1.0 - rainStrengthS));
+		vec3 addedColor = color.rgb + vl * lightShaftTime;
+		#if LIGHT_SHAFT_MODE == 2
+			vec3 vlMixBlend = vlP * (1.0 - 0.5 * rainStrengthS);
+		#else
+			vec3 vlMixBlend = vlP * 0.5;
+			vlP *= 0.75;
+		#endif
+		float mixedTime = sunVisibility < 0.5 ?
+						  sqrt3(max(moonBrightness - 0.3, 0.0) / 0.7) * lightShaftTime
+						  : pow2(pow2((sunVisibilityLSM - 0.5) * 2.0));
+		vec3 mixedColor = mix(color.rgb, vl / max(vlP, 0.01), vlMixBlend * mixedTime);
+		color.rgb = mix(mixedColor, addedColor, sunVisibility * (1.0 - rainStrengthS));
 	#endif
 
 	#ifdef VL_CLOUDS
 		clouds.a *= CLOUD_OPACITY;
 		color.rgb = mix(color.rgb, clouds.rgb, clouds.a);
 	#endif
+	
 	/*DRAWBUFFERS:0*/
 	gl_FragData[0] = color;
 }

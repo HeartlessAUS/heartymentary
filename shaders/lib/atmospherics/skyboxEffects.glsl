@@ -364,7 +364,7 @@
 			float skytime = cloudtime;
 		#endif
 
-		vec2 wind = vec2(skytime * 0.0002);
+		vec2 wind = vec2(skytime * 0.00005);
 
 		vec3 smoke = vec3(0.0);
 
@@ -380,7 +380,7 @@
 					noise = max(0.75 - 1.0 / abs(noise - 6.0), 0.0) * 3.0;
 
 			if (noise > 0.0) {
-				noise *= texture2D(noisetex, abs(coord * 0.25) + wind * 8.0).x * 5;
+				noise *= texture2D(noisetex, abs(coord * 0.25) + wind * 8.0).x;
 				float heightNoise = wpos.y;
 				float fireNoise = texture2D(noisetex, abs(coord * 0.2) + (heightNoise + cameraPosition.y * 0.01) * 0.01 + wind * -4.0).x;
 				noise = noise * noise * 3.0 / sampleCount;

@@ -41,9 +41,13 @@ uniform sampler2D depthtex1;
 	uniform float starter;
 #endif
 
+#if MC_VERSION >= 11900
+	uniform float darknessFactor;
+#endif
+
 //Optifine Constants//
 #if AUTO_EXPOSURE > 0
-const bool colortex0MipmapEnabled = true;
+	const bool colortex0MipmapEnabled = true;
 #endif
 
 //Common Variables//
@@ -60,13 +64,10 @@ float GetLuminance(vec3 color) {
 
 void UnderwaterDistort(inout vec2 texCoord) {
 	vec2 originalTexCoord = texCoord;
-	float strength = UNDERWATER_DISTORT;
-	#if defined NETHER && defined NETHER_HEAT_WAVE
-			strength = NETHER_HEAT_WAVE_STRENGTH;
-	#endif
+
 	float wind = frameTimeCounter * ANIMATION_SPEED;
 	texCoord +=vec2(cos(texCoord.y * 32.0 + wind * 3.0),
-	                sin(texCoord.x * 32.0 + wind * 1.7)) * 0.001 * strength;
+	                sin(texCoord.x * 32.0 + wind * 1.7)) * 0.001 * UNDERWATER_DISTORT;
 
 	float mask = float(texCoord.x > 0.0 && texCoord.x < 1.0 &&
 	                   texCoord.y > 0.0 && texCoord.y < 1.0);
@@ -87,10 +88,15 @@ vec3 GetBloomTile(float lod, vec2 coord, vec2 offset, vec2 ditherAdd) {
 
 void Bloom(inout vec3 color, vec2 coord, float dither) {
 	#ifndef ANAMORPHIC_BLOOM
+		#if AA > 1
+			dither = fract(16.0 * frameTimeCounter + dither);
+		#endif
+
 		vec2 rescale = 1.0 / vec2(1920.0, 1080.0);
 		vec2 ditherAdd = vec2(0.0);
-		if (rescale.x > pw) ditherAdd.x += (dither - 0.5) * 2.0 * pw;
-		if (rescale.y > ph) ditherAdd.y += (dither - 0.5) * 2.0 * ph;
+		float ditherM = dither - 0.5;
+		if (rescale.x > pw) ditherAdd.x += ditherM * pw;
+		if (rescale.y > ph) ditherAdd.y += ditherM * ph;
 
 		vec3 blur1 = GetBloomTile(2.0, coord, vec2(0.0      , 0.0   ), ditherAdd);
 		vec3 blur2 = GetBloomTile(3.0, coord, vec2(0.0      , 0.26  ), ditherAdd);
@@ -108,8 +114,9 @@ void Bloom(inout vec3 color, vec2 coord, float dither) {
 		blur *= blur * 128.0;
 	#endif
 	
-	#if defined OVERWORLD
+	#ifndef NETHER
 		float bloomStrength = BLOOM_STRENGTH;
+		if (isEyeInWater == 1) bloomStrength = UNDERWATER_BLOOM_STRENGTH;
 	#else
 		float bloomStrength = NETHER_BLOOM_STRENGTH;
 	#endif
@@ -119,6 +126,10 @@ void Bloom(inout vec3 color, vec2 coord, float dither) {
 	#ifdef BLURRY_START
 		float animation = min(starter, 0.1) * 10.0;
 		bloomStrength = mix(1.0, bloomStrength, animation);
+	#endif
+
+	#if MC_VERSION >= 11900
+		bloomStrength = mix(bloomStrength, 0.26, darknessFactor);
 	#endif
 
 	color = mix(color, blur, bloomStrength);
@@ -195,12 +206,11 @@ vec2 GetLightPos() {
 void main() {
     vec2 newTexCoord = texCoord;
 	if (isEyeInWater == 1.0) UnderwaterDistort(newTexCoord);
-	#if defined NETHER && defined NETHER_HEAT_WAVE
-		UnderwaterDistort(newTexCoord);
-	#endif
+
 	vec2 filmGrainCoord = texCoord * vec2(viewWidth, viewHeight) / 512.0;
 	vec3 filmGrain = texture2D(noisetex, filmGrainCoord).rgb;
 	vec3 color = texture2D(colortex0, newTexCoord).rgb;
+	
 	#if AUTO_EXPOSURE > 0
 		float tempExposure = texture2D(colortex2, vec2(pw, ph)).r;
 	#endif
@@ -254,10 +264,14 @@ void main() {
 			temporalData = mix(tempVisibleSun, visibleSun, 0.1);
 	#endif
 	
-    #ifdef VIGNETTE
+    #if VIGNETTE == 1
 		float vignette = 1.0 - length(texCoord.xy - 0.5) * (1.0 - GetLuminance(color));
 		vignette = pow(vignette, VIGNETTE_STRENGTH);
    		color *= vignette;
+	#elif VIGNETTE == 2
+		float vignette = length(texCoord.xy - 0.5);
+		vignette = pow(vignette, 4.0 / VIGNETTE_STRENGTH);
+   		color = mix(color, vec3(1.4), vignette);
 	#endif
 	
 	color = pow(color, vec3(1.0 / 2.2));

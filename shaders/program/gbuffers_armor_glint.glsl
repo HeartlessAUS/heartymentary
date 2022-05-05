@@ -54,14 +54,14 @@ uniform mat4 gbufferModelViewInverse;
 
 //Common Variables//
 #if WORLD_TIME_ANIMATION >= 2
-float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
+	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
 #else
-float frametime = frameTimeCounter * ANIMATION_SPEED;
+	float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 //Includes//
 #ifdef WORLD_CURVATURE
-#include "/lib/vertex/worldCurvature.glsl"
+	#include "/lib/vertex/worldCurvature.glsl"
 #endif
 
 //Program//

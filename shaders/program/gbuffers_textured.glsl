@@ -54,15 +54,19 @@ uniform mat4 shadowModelView;
 uniform sampler2D texture;
 
 #if ((defined WATER_CAUSTICS || defined CLOUD_SHADOW) && defined OVERWORLD) || defined RANDOM_BLOCKLIGHT || defined END || (defined NETHER && defined NETHER_SMOKE)
-uniform sampler2D noisetex;
+	uniform sampler2D noisetex;
 #endif
 
 #if !defined COMPATIBILITY_MODE && MC_VERSION >= 11700
-uniform ivec4 blendFunc;
+	uniform ivec4 blendFunc;
 #endif
 
 #ifdef COLORED_LIGHT
-uniform sampler2D colortex9;
+	uniform sampler2D colortex9;
+#endif
+
+#if MC_VERSION >= 11900
+	uniform float darknessLightFactor;
 #endif
 
 //Common Variables//
@@ -71,9 +75,9 @@ float sunVisibility = clamp(dot( sunVec,upVec) + 0.0625, 0.0, 0.125) * 8.0;
 float vsBrightness = clamp(screenBrightness, 0.0, 1.0);
 
 #if WORLD_TIME_ANIMATION >= 2
-float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
+	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
 #else
-float frametime = frameTimeCounter * ANIMATION_SPEED;
+	float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 #ifdef OVERWORLD
@@ -85,11 +89,6 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 //Common Functions//
 float GetLuminance(vec3 color) {
 	return dot(color,vec3(0.299, 0.587, 0.114));
-}
-
-float InterleavedGradientNoise() {
-	float n = 52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y);
-	return fract(n + frameCounter / 8.0);
 }
  
 //Includes//
@@ -281,9 +280,9 @@ attribute vec4 mc_midTexCoord;
 
 //Common Variables//
 #if WORLD_TIME_ANIMATION >= 2
-float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
+	float frametime = float(worldTime) * 0.05 * ANIMATION_SPEED;
 #else
-float frametime = frameTimeCounter * ANIMATION_SPEED;
+	float frametime = frameTimeCounter * ANIMATION_SPEED;
 #endif
 
 #ifdef OVERWORLD
@@ -300,7 +299,7 @@ float frametime = frameTimeCounter * ANIMATION_SPEED;
 
 //Includes//
 #ifdef WORLD_CURVATURE
-#include "/lib/vertex/worldCurvature.glsl"
+	#include "/lib/vertex/worldCurvature.glsl"
 #endif
 
 #endif
